@@ -1,0 +1,62 @@
+name: Workflow
+
+on:
+  push:
+    branches:
+      - master
+    pull_request:
+      branches:
+        - master
+    
+jobs:
+  build:
+    name: INITIAL BUILD
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Setting up PHP
+        uses: ./.github/actions/php
+
+      - name: Setting up Composer
+        run: ./.github/scripts/run-composer.sh
+
+      # - name: Deploy to Server
+      #   uses: yiier/yii2-base-deploy@master
+      #   with:
+      #     user: github
+      #     host: ${{ secrets.host }}
+      #     path: ${{ secrets.path }}
+      #     owner: github
+      #   env:
+      #     DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+        
+      # - name: Apply migration
+      #   run: php yii migrate --interactive=0
+      # - name: Migrations 
+      #   run: ./.github/scripts/run-migrations.sh 
+      # - name: Running PHPStan
+      #   run: ./.github/scripts/run-phpstan.sh
+      - name: Push to repo server
+        run: |
+          git init
+          git config --global user.email "leesonego@gmail.com"
+          git config --global user.name "luiz yavorski"
+          git remote set-url --add --push origin ssh://hpteste@500milhas.com:1992/home2/hpteste/api.hpmotores.com.br/repo.git
+          git add .
+          git commit -m "Push to cPanel"
+          git push ssh://hpteste@500milhas.com:1992/home2/hpteste/api.hpmotores.com.br/repo.git -f 
+    # ci:
+    #   run-on: ubuntu-latest
+    #   steps:
+    #     - uses: actions/checkout@v2
+    #       name: Push to repo server
+    #       run: |
+    #         git remote set-url --add --push origin-deploy ssh://hpteste@500milhas.com:1992/home2/hpteste/api.hpmotores.com.br/repo.git
+    #         git add .
+    #         git commit -m "Push to cPanel"
+    #         git push origin-deploy -f
+            
+            
+# git push https://${{ secrets.GITHUB_TOKEN }}@domain.com/username/example.git -f
