@@ -1,0 +1,37 @@
+name: Deploy PHP api
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build:
+    name: Build 🚧
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v3
+
+      - name: Setting up PHP 🔧
+        uses: ./.github/actions/php
+
+      # - name: Setting up Composer 🔧
+      #   run: ./.github/scripts/run-composer.sh
+
+      - name: Setup MySql
+        uses: nnhy/mysql-action@v1.0
+
+      - name: Deploy 📦️ 🚀
+        uses: easingthemes/ssh-deploy@main
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY_GIT_ACT }}
+          ARGS: "-rltgoDzvO --delete"
+          SOURCE: "./"
+          REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
+          REMOTE_USER: ${{ secrets.USERNAME }}
+          REMOTE_PORT: ${{ secrets.REMOTE_PORT }}
+          TARGET: ${{ secrets.REMOTE_TARGET }}
+          EXCLUDE: ".env"
+
+      - name: Sucesso 🍻
+        run: |
+          echo Deploy completed successfully
