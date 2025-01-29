@@ -30,6 +30,7 @@ class Prioridade extends ActiveRecord
           'nome',
           'slug',
           'descricao',
+          'cor',
         ],
         'string'
       ],

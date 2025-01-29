@@ -40,6 +40,7 @@ class Profile extends ActiveRecord
           'whatsapp',
           'email',
           'observation',
+          'unidade',
         ],
         'string'
       ],

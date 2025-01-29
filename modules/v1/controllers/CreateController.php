@@ -69,26 +69,40 @@ class CreateController extends Controller
 
   public function actionAtendimento()
   {
-    $payloadBot = [
-      "cliente" => "Lucia Maria",
-      "cliente_telefone" => "11999999999",
-      "atendido_por" => "BOT",
-      "atendimento_iniciado" => "2020-06-06 10:00:00",
-      "status" => "Aberto",
-      "prioridade" => "Alta",
-      'grupo' => "Cardiologia",
-      'etiqueta' => "Cardiologia",
-      "servico" => "Consulta de rotina",
-      "descricao" => "Preciso de uma consulta de rotina",
-      "acao" => "Consulta",
-    ];
+    // $payloadBot = [
+    //   "cliente" => "Lucia Maria",
+    //   "cliente_telefone" => "11999999999",
+    //   "atendido_por" => "BOT",
+    //   "atendimento_iniciado" => "2020-06-06 10:00:00",
+    //   "status" => "Aberto",
+    //   "prioridade" => "Alta",
+    //   'grupo' => "Cardiologia",
+    //   'etiqueta' => "Cardiologia",
+    //   "servico" => "Consulta de rotina",
+    //   "descricao" => "Preciso de uma consulta de rotina",
+    //   "acao" => "Consulta",
+    // ];
+    $params = Yii::$app->request->getBodyParams();
 
     $transaction = Yii::$app->db->beginTransaction();
     try {
+
+      $arrEtapas = [];
+      $outro = isset($params['nome_outro']);
+      $para = $params['para_quem'] === 'mim' ? ',' : " para {$outro},";
+      $title = "{$params['titular_plano']} solicita atendimento{$para} de {$params['o_que_deseja']}, em {$params['onde_deseja_ser_atendido']} pelo profissional: {$params['medico_atendimento']}";
+      array_push($arrEtapas, ['hora' => date('d-m-Y H:m:i'), 'descricao' => 'atendimento iniciado pelo auto-atendimento']);
+
       $model = new Atendimento();
-      $model->attributes = $payloadBot;
+      $model->attributes = $params;
+      $model->status = "ABERTO";
+      $model->atendimento_iniciado = date('d-m-Y H:m:i');
+      $model->atendido_por = 'AUTO-ATENDIMENTO';
+      $model->titulo = $title;
+      $model->etapas = $arrEtapas;
 
       $model->save();
+
       $transaction->commit();
 
       $response['status'] = StatusCode::STATUS_CREATED;
@@ -328,6 +342,8 @@ class CreateController extends Controller
     try {
       $model = new Medicos();
       $model->attributes = $params;
+      $model->horarios = serialize($params['horarios']);
+      $model->procedimento_valor = serialize($params['procedimento_valor']);
       $model->save();
 
       $transaction->commit();

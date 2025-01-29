@@ -26,6 +26,8 @@ class m240714_134600_create_initial_data_base_table extends Migration
             'email' => $this->string(),
             'user_id' => $this->integer()->comment('id referencia com tabela de login'),
             'observation' => $this->string(),
+            'unidade' => $this->string(),
+            'cargo' => $this->string(),
             'avatar_url' => $this->string(),
             'created_at' => $this->string(),
             'updated_at' => $this->string(),
@@ -72,6 +74,16 @@ class m240714_134600_create_initial_data_base_table extends Migration
 
         $this->createTable('{{%atendimento%}}', [
             'id' => $this->primaryKey(),
+            'titular_plano' => $this->string(),
+            'cpf_titular' => $this->string(),
+            'whatsapp_titular' => $this->string(),
+            'para_quem' => $this->string(),
+            'nome_outro' => $this->string(),
+            'cpf_outro' => $this->string(),
+            'o_que_deseja' => $this->integer(),
+            'onde_deseja_ser_atendido' => $this->integer(),
+            'medico_atendimento' => $this->integer(),
+            'observacoes' => $this->string(),
             'titulo' => $this->string(),
             'slug' => $this->string(),
             'descricao' => $this->string(),
@@ -115,11 +127,13 @@ class m240714_134600_create_initial_data_base_table extends Migration
         $this->createTable('{{%medicos%}}', [
             'id' => $this->primaryKey(),
             'nome' => $this->string(),
-            'crm' => $this->string(),
+            'local' => $this->string(),
             'especialidade' => $this->string(),
             'telefone' => $this->string(),
             'whatsapp' => $this->string(),
             'email' => $this->string(),
+            'horarios' => $this->json(),
+            'procedimento_valor' => $this->json(),
             'avatar_url' => $this->string()
         ], $tableOptions);
 
@@ -128,7 +142,7 @@ class m240714_134600_create_initial_data_base_table extends Migration
             'nome' => $this->string(),
             'slug' => $this->string(),
             'descricao' => $this->string(),
-            'tempo' => $this->integer(),
+            'tempo' => $this->string(),
             'obrigatorio' => $this->integer()->defaultValue(0),
             'created_at' => $this->string(),
             'updated_at' => $this->string(),
@@ -158,6 +172,7 @@ class m240714_134600_create_initial_data_base_table extends Migration
             'nome' => $this->string(),
             'slug' => $this->string(),
             'descricao' => $this->string(),
+            'cor' => $this->string(),
             'created_at' => $this->string(),
             'updated_at' => $this->string(),
             'deleted_at' => $this->string(),

@@ -33,7 +33,7 @@ class Acoes extends ActiveRecord
         ],
         'string'
       ],
-      [['tempo'], 'number'],
+      [['tempo'], 'string'],
       [
         [
           'obrigatorio',

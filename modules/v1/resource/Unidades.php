@@ -1,15 +1,13 @@
 <?php
 namespace app\modules\v1\resource;
 
-use app\models\Etiqueta;
-use app\models\Grupo as ModelsGrupo;
+use app\models\Unidades as ModelsUnidades;
 
-class Grupo extends ModelsGrupo
+class Unidades extends ModelsUnidades
 {
   public function fields()
   {
     $fields = parent::fields();
-    $fields['etiqueta'] = 'etiqueta';
 
     unset(
       $fields['slug'],
@@ -26,9 +24,5 @@ class Grupo extends ModelsGrupo
 
   }
 
-  public function getEtiqueta()
-  {
-    return $this->hasMany(Etiqueta::className(), ['grupo' => 'id']);
-  }
 
 }

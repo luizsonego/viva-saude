@@ -25,8 +25,19 @@ class Medicos extends ActiveRecord
   public function rules()
   {
     return [
-      [['nome', 'crm', 'especialidade', 'telefone', 'whatsapp', 'email'], 'required'],
-      [['nome', 'crm', 'especialidade', 'telefone', 'whatsapp', 'email', 'avatar_url'], 'string'],
+      [
+        [
+          'nome',
+          'especialidade',
+          'telefone',
+          'whatsapp',
+          'email',
+          'local',
+          'avatar_url'
+        ],
+        'string'
+      ],
+      [['horarios', 'procedimento_valor'], 'safe'],
     ];
   }
 
