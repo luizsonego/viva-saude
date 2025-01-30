@@ -5,6 +5,7 @@ use app\helpers\SlugfyHelper;
 use app\helpers\TokenAuthenticationHelper;
 use app\models\Acoes;
 use app\models\Atendimento;
+use app\models\Especialidade;
 use app\models\Etiqueta;
 use app\models\Grupo;
 use app\models\Medicos;
@@ -207,7 +208,7 @@ class CreateController extends Controller
     } catch (\Throwable $th) {
       $transaction->rollBack();
       $response['status'] = StatusCode::STATUS_BAD_REQUEST;
-      $response['message'] = $th->getMessage();
+      $response['message'] = "Error: {$th->getCode()} - {$th->getMessage()}";
       $response['data'] = [];
       //throw $th;
     }
@@ -312,6 +313,35 @@ class CreateController extends Controller
     try {
 
       $model = new Unidades();
+      $model->attributes = $params;
+      $model->slug = SlugfyHelper::slugfy($params['nome']);
+
+      $model->save();
+
+      $transaction->commit();
+
+      $response['status'] = StatusCode::STATUS_CREATED;
+      $response['message'] = 'Data is created!';
+      $response['data'] = [];
+
+    } catch (\Throwable $th) {
+      $transaction->rollBack();
+      $response['status'] = StatusCode::STATUS_BAD_REQUEST;
+      $response['message'] = $th->getMessage();
+      $response['data'] = [];
+    }
+
+    return $response;
+  }
+  public function actionEspecialidade()
+  {
+
+    $token = TokenAuthenticationHelper::token();
+    $params = Yii::$app->request->getBodyParams();
+    $transaction = Yii::$app->db->beginTransaction();
+    try {
+
+      $model = new Especialidade();
       $model->attributes = $params;
       $model->slug = SlugfyHelper::slugfy($params['nome']);
 

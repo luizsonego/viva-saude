@@ -3,6 +3,7 @@ namespace app\modules\v1\controllers;
 
 use app\models\Acoes;
 use app\models\Atendimento;
+use app\models\Especialidade;
 use app\models\Etiqueta;
 use app\models\Grupo;
 use app\models\Medicos;
@@ -62,6 +63,17 @@ class ViewController extends Controller
   public function actionGrupo($id)
   {
     $model = new ResourceGrupo();
+    $data = $model->find()->where(['id' => $id])->one();
+
+    return [
+      'status' => StatusCode::STATUS_OK,
+      'message' => "",
+      'data' => $data
+    ];
+  }
+  public function actionEspecialidade($id)
+  {
+    $model = new Especialidade();
     $data = $model->find()->where(['id' => $id])->one();
 
     return [

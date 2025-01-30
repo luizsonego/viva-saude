@@ -205,4 +205,25 @@ class DeleteController extends Controller
 
         return $response;
     }
+    public function actionEspecialidade($id)
+    {
+        try {
+
+            (new Query)
+                ->createCommand()
+                ->delete('especialidade', ['id' => $id])
+                ->execute();
+
+            $response['status'] = StatusCode::STATUS_CREATED;
+            $response['message'] = 'Data is deleted!';
+            $response['data'] = [];
+
+        } catch (\Throwable $th) {
+            $response['status'] = StatusCode::STATUS_ERROR;
+            $response['message'] = "Error: {$th->getMessage()}";
+            $response['data'] = [];
+        }
+
+        return $response;
+    }
 }

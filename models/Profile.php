@@ -40,11 +40,12 @@ class Profile extends ActiveRecord
           'whatsapp',
           'email',
           'observation',
-          'unidade',
+          'cargo',
+
         ],
         'string'
       ],
-      [['user_id'], 'integer']
+      [['user_id', 'unidade'], 'integer']
     ];
   }
 

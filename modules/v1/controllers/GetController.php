@@ -3,6 +3,7 @@ namespace app\modules\v1\controllers;
 
 use app\models\Acoes;
 use app\models\Atendimento;
+use app\models\Especialidade;
 use app\models\Etiqueta;
 use app\models\Medicos;
 use app\models\Origem;
@@ -11,6 +12,7 @@ use app\models\Status;
 use app\models\StatusCode;
 use app\models\Unidades;
 use app\models\User;
+use app\modules\v1\resource\Atendente;
 use app\modules\v1\resource\Atendimento as ResourceAtendimento;
 use app\modules\v1\resource\Grupo;
 use yii\filters\Cors;
@@ -126,6 +128,17 @@ class GetController extends Controller
       'data' => $data
     ];
   }
+  public function actionEspecialidade()
+  {
+    $model = new Especialidade();
+    $data = $model->find()->all();
+
+    return [
+      'status' => StatusCode::STATUS_OK,
+      'message' => "",
+      'data' => $data
+    ];
+  }
 
   public function actionAcoes()
   {
@@ -143,7 +156,7 @@ class GetController extends Controller
 
   public function actionAtendente()
   {
-    $model = new User();
+    $model = new Atendente();
     $data = $model->find()
       ->where(['access_given' => 10])
       ->all();

@@ -3,6 +3,7 @@ namespace app\modules\v1\controllers;
 
 use app\models\Acoes;
 use app\models\Atendimento;
+use app\models\Especialidade;
 use app\models\Etiqueta;
 use app\models\Grupo;
 use app\models\Medicos;
@@ -94,6 +95,32 @@ class UpdateController extends Controller
 
     try {
       $model = Acoes::findOne($params['id']);
+
+      $model->setAttributes($params);
+      $model->save();
+
+      $transactionDb->commit();
+
+      $response['status'] = 'success';
+      $response['message'] = 'Agendamento atualizado com sucesso!';
+      $response['data'] = $model;
+
+    } catch (\Throwable $th) {
+      $transactionDb->rollBack();
+      $response['status'] = 'error';
+      $response['message'] = $th->getMessage();
+      $response['data'] = '';
+    }
+
+    return $response;
+  }
+  public function actionEspecialidade()
+  {
+    $params = \Yii::$app->request->post();
+    $transactionDb = \Yii::$app->db->beginTransaction();
+
+    try {
+      $model = Especialidade::findOne($params['id']);
 
       $model->setAttributes($params);
       $model->save();
