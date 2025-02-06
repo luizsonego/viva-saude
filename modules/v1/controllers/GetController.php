@@ -51,6 +51,12 @@ class GetController extends Controller
     $model = new ResourceAtendimento();
     $data = $model->find()->all();
 
+    foreach ($data as &$item) {
+      if (isset($item->etapas) && !empty($item->etapas)) {
+        $item->etapas = json_decode($item->etapas, true);
+      }
+    }
+
     return [
       'status' => StatusCode::STATUS_OK,
       'message' => "",
@@ -86,12 +92,20 @@ class GetController extends Controller
     $model = new Medicos();
     $data = $model->find()->all();
 
+    foreach ($data as &$medico) {
+      if (!empty($medico->local)) {
+        self::is_serialized($medico->local) ? $medico->local = unserialize($medico->local) : ["local" => $medico->local];
+      }
+    }
+
     return [
       'status' => StatusCode::STATUS_OK,
       'message' => "",
       'data' => $data
     ];
   }
+
+
 
   public function actionPrioridade()
   {
@@ -168,4 +182,63 @@ class GetController extends Controller
     ];
   }
 
+
+  public function actionProcedimentos()
+  {
+    $model = new Medicos();
+    $data = $model->find()->all();
+
+    $procedimentos = [];
+
+    // Itera sobre os resultados e extrai apenas o campo "procedimento"
+    foreach ($data as $item) {
+      if (isset($item->procedimento_valor) && !empty($item->procedimento_valor)) {
+        $decoded = json_decode($item->procedimento_valor, true);
+        if (is_array($decoded)) {
+          foreach ($decoded as $proc) {
+            if (isset($proc['procedimento'])) {
+              $procedimentos[] = $proc['procedimento'];
+            }
+          }
+        }
+      }
+    }
+
+    // Remove duplicatas
+    $procedimentos = array_values(array_unique($procedimentos));
+
+    return [
+      'status' => StatusCode::STATUS_OK,
+      'message' => "",
+      'data' => $procedimentos
+    ];
+  }
+
+
+  function is_serialized($data)
+  {
+    // Se não é uma string, não pode ser serializado
+    if (!is_string($data)) {
+      return false;
+    }
+
+    // Verifica se a string é 'N;' (null serializado)
+    if ($data === 'N;') {
+      return true;
+    }
+
+    // Verifica se a string tem pelo menos 4 caracteres (mínimo para uma string serializada)
+    if (strlen($data) < 4) {
+      return false;
+    }
+
+    // Verifica se a string começa com um dos caracteres de tipos serializados
+    if (':' !== $data[1] || (';' !== substr($data, -1) && '}' !== substr($data, -1))) {
+      return false;
+    }
+
+    // Tenta unserializar a string
+    $result = @unserialize($data);
+    return $result !== false || $data === 'b:0;';
+  }
 }

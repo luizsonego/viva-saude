@@ -54,12 +54,44 @@ class ViewController extends Controller
     $model = new ResourceMedicos();
     $data = $model->find()->where(['id' => $id])->one();
 
+    $data->procedimento_valor = unserialize($data['procedimento_valor']);
+    if (!empty($data->local)) {
+      self::is_serialized($data->local) ? $data->local = unserialize($data->local) : $data->local;
+    }
+
     return [
       'status' => StatusCode::STATUS_OK,
       'message' => "",
       'data' => $data
     ];
   }
+  function is_serialized($data)
+  {
+    // Se não é uma string, não pode ser serializado
+    if (!is_string($data)) {
+      return false;
+    }
+
+    // Verifica se a string é 'N;' (null serializado)
+    if ($data === 'N;') {
+      return true;
+    }
+
+    // Verifica se a string tem pelo menos 4 caracteres (mínimo para uma string serializada)
+    if (strlen($data) < 4) {
+      return false;
+    }
+
+    // Verifica se a string começa com um dos caracteres de tipos serializados
+    if (':' !== $data[1] || (';' !== substr($data, -1) && '}' !== substr($data, -1))) {
+      return false;
+    }
+
+    // Tenta unserializar a string
+    $result = @unserialize($data);
+    return $result !== false || $data === 'b:0;';
+  }
+
   public function actionGrupo($id)
   {
     $model = new ResourceGrupo();
@@ -148,5 +180,6 @@ class ViewController extends Controller
       'data' => $data
     ];
   }
+
 
 }

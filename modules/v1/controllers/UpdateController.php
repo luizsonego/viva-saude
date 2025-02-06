@@ -55,7 +55,7 @@ class UpdateController extends Controller
       $transactionDb->rollBack();
       $response['status'] = 'error';
       $response['message'] = $th->getMessage();
-      $response['data'] = '';
+      $response['data'] = [];
     }
 
     return $response;
@@ -68,6 +68,13 @@ class UpdateController extends Controller
 
     try {
       $model = Grupo::findOne($params['id']);
+
+      $modelEtiqueta = Etiqueta::find()->where(['grupo' => $params['id']])->all();
+
+      foreach ($modelEtiqueta as $etiqueta) {
+        $etiqueta->cor = isset($params['cor']) ? $params['cor'] : $params['cor'];
+        $etiqueta->save();
+      }
 
       $model->setAttributes($params);
       $model->save();
@@ -82,7 +89,7 @@ class UpdateController extends Controller
       $transactionDb->rollBack();
       $response['status'] = 'error';
       $response['message'] = $th->getMessage();
-      $response['data'] = '';
+      $response['data'] = [];
     }
 
     return $response;
@@ -109,7 +116,7 @@ class UpdateController extends Controller
       $transactionDb->rollBack();
       $response['status'] = 'error';
       $response['message'] = $th->getMessage();
-      $response['data'] = '';
+      $response['data'] = [];
     }
 
     return $response;
@@ -135,7 +142,7 @@ class UpdateController extends Controller
       $transactionDb->rollBack();
       $response['status'] = 'error';
       $response['message'] = $th->getMessage();
-      $response['data'] = '';
+      $response['data'] = [];
     }
 
     return $response;
@@ -161,7 +168,7 @@ class UpdateController extends Controller
       $transactionDb->rollBack();
       $response['status'] = 'error';
       $response['message'] = $th->getMessage();
-      $response['data'] = '';
+      $response['data'] = [];
     }
 
     return $response;
@@ -175,6 +182,7 @@ class UpdateController extends Controller
       $model = Medicos::findOne($params['id']);
 
       $model->setAttributes($params);
+      $model->local = serialize($params['localizacao']);
       $model->save();
 
       $transactionDb->commit();
@@ -187,7 +195,7 @@ class UpdateController extends Controller
       $transactionDb->rollBack();
       $response['status'] = 'error';
       $response['message'] = $th->getMessage();
-      $response['data'] = '';
+      $response['data'] = [];
     }
 
     return $response;
@@ -213,7 +221,7 @@ class UpdateController extends Controller
       $transactionDb->rollBack();
       $response['status'] = 'error';
       $response['message'] = $th->getMessage();
-      $response['data'] = '';
+      $response['data'] = [];
     }
 
     return $response;
@@ -239,7 +247,7 @@ class UpdateController extends Controller
       $transactionDb->rollBack();
       $response['status'] = 'error';
       $response['message'] = $th->getMessage();
-      $response['data'] = '';
+      $response['data'] = [];
     }
 
     return $response;
@@ -265,7 +273,7 @@ class UpdateController extends Controller
       $transactionDb->rollBack();
       $response['status'] = 'error';
       $response['message'] = $th->getMessage();
-      $response['data'] = '';
+      $response['data'] = [];
     }
 
     return $response;
@@ -291,7 +299,71 @@ class UpdateController extends Controller
       $transactionDb->rollBack();
       $response['status'] = 'error';
       $response['message'] = $th->getMessage();
-      $response['data'] = '';
+      $response['data'] = [];
+    }
+
+    return $response;
+  }
+
+  public function actionAtendimento()
+  {
+    $params = \Yii::$app->request->post();
+    $transactionDb = \Yii::$app->db->beginTransaction();
+
+    try {
+      $model = Atendimento::findOne($params['id']);
+
+      $arrEtapas = $model['etapas'];
+
+      $model->attributes = $params;
+      array_push($arrEtapas, ['hora' => date('d-m-Y H:m:i'), 'descricao' => 'atendimento alterado pelo atendente {[nome do atendente]}']);
+      $model->etapas = $arrEtapas;
+
+      $model->save();
+
+      $transactionDb->commit();
+
+      $response['status'] = 'success';
+      $response['message'] = 'Agendamento atualizado com sucesso!';
+      $response['data'] = $model;
+
+    } catch (\Throwable $th) {
+      $transactionDb->rollBack();
+      $response['status'] = 'error';
+      $response['message'] = $th->getMessage();
+      $response['data'] = [];
+    }
+
+    return $response;
+  }
+
+  public function actionTrocaStatus()
+  {
+    $params = \Yii::$app->request->post();
+    $transactionDb = \Yii::$app->db->beginTransaction();
+
+    try {
+      $model = Atendimento::findOne($params['id']);
+
+      $arrEtapas = json_decode($model['etapas']);
+
+      $model->attributes = $params;
+      array_push($arrEtapas, ['hora' => date('d-m-Y H:m:i'), 'descricao' => 'atendimento alterado STATUS para {$params[status]} pelo atendente {[nome do atendente]}']);
+      $model->etapas = json_encode($arrEtapas);
+
+      $model->save();
+
+      $transactionDb->commit();
+
+      $response['status'] = 'success';
+      $response['message'] = 'Agendamento atualizado com sucesso!';
+      $response['data'] = $model;
+
+    } catch (\Throwable $th) {
+      $transactionDb->rollBack();
+      $response['status'] = 'error';
+      $response['message'] = $th->getMessage();
+      $response['data'] = [];
     }
 
     return $response;

@@ -39,7 +39,7 @@ class Atendimento extends ModelsAtendimento
   }
   public function getAcoes()
   {
-    return $this->hasMany(Acoes::className(), ['id' => 'o_que_deseja']);
+    return $this->hasOne(Acoes::className(), ['id' => 'o_que_deseja']);
   }
 
 }

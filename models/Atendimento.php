@@ -35,8 +35,8 @@ class Atendimento extends ActiveRecord
           'atendimento_iniciado',
           'atendimento_finalizado',
           'atendimento_observacao',
-          'medico',
           'medico_telefone',
+          'medico_atendimento',
           'medico_atendimento_data',
           'medico_atendimento_observacao',
           'medico_atendimento_status',
@@ -52,15 +52,17 @@ class Atendimento extends ActiveRecord
           'para_quem',
           'nome_outro',
           'cpf_outro',
+          'perfil_cliente',
+          'onde_deseja_ser_atendido',
+          'o_que_deseja',
         ],
         'string'
       ],
       [['atendimento_valor'], 'number'],
-      [['etapas'], 'safe'],
+      [['etapas', 'em_espera', 'aguardando_vaga'], 'safe'],
       [
         [
-          'o_que_deseja',
-          'onde_deseja_ser_atendido',
+          'medico',
         ],
         'integer'
       ]

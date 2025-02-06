@@ -70,19 +70,6 @@ class CreateController extends Controller
 
   public function actionAtendimento()
   {
-    // $payloadBot = [
-    //   "cliente" => "Lucia Maria",
-    //   "cliente_telefone" => "11999999999",
-    //   "atendido_por" => "BOT",
-    //   "atendimento_iniciado" => "2020-06-06 10:00:00",
-    //   "status" => "Aberto",
-    //   "prioridade" => "Alta",
-    //   'grupo' => "Cardiologia",
-    //   'etiqueta' => "Cardiologia",
-    //   "servico" => "Consulta de rotina",
-    //   "descricao" => "Preciso de uma consulta de rotina",
-    //   "acao" => "Consulta",
-    // ];
     $params = Yii::$app->request->getBodyParams();
 
     $transaction = Yii::$app->db->beginTransaction();
@@ -90,17 +77,32 @@ class CreateController extends Controller
 
       $arrEtapas = [];
       $outro = isset($params['nome_outro']);
-      $para = $params['para_quem'] === 'mim' ? ',' : " para {$outro},";
+      $para = $params['para_quem'] === 'titular' ? ',' : " para {$outro},";
+
+      // $modelAcao = new Acoes();
+      // $desejo = $modelAcao->find()->select('nome')->where(['id' => $params['o_que_deseja']])->one();
+
+      $modelMedicos = new Medicos();
+      $medico = $modelMedicos->find()->select('nome')->where(['id' => $params['medico_atendimento']])->one();
+
       $title = "{$params['titular_plano']} solicita atendimento{$para} de {$params['o_que_deseja']}, em {$params['onde_deseja_ser_atendido']} pelo profissional: {$params['medico_atendimento']}";
       array_push($arrEtapas, ['hora' => date('d-m-Y H:m:i'), 'descricao' => 'atendimento iniciado pelo auto-atendimento']);
 
+      // $emEspera = isset($params['em_espera']) && $params['em_espera'] !== false ? 'FILA DE ESPERA' : isset($params['"aguardando_vaga']) && $params['aguardando_vaga'] !== false ? '"AGUARDANDO VAGA' : 'ABERTO';
+      // $aguardandoVaga = isset($params['"aguardando_vaga']) && $params['aguardando_vaga'] !== false ? '"AGUARDANDO VAGA' : 'ABERTO';
+      $emEspera = !empty($params['em_espera']) ? 'FILA DE ESPERA' :
+        (!empty($params['aguardando_vaga']) ? 'AGUARDANDO VAGA' : 'ABERTO');
+
       $model = new Atendimento();
       $model->attributes = $params;
-      $model->status = "ABERTO";
-      $model->atendimento_iniciado = date('d-m-Y H:m:i');
-      $model->atendido_por = 'AUTO-ATENDIMENTO';
+      $model->status = $emEspera;
+      // $model->atendimento_iniciado = date('d-m-Y H:m:i');
+      $model->atendido_por = isset($params['atendido_por']) ? $params['atendido_por'] : 'AUTO-ATENDIMENTO';
       $model->titulo = $title;
-      $model->etapas = $arrEtapas;
+      $model->medico_atendimento = $medico['nome'];
+      $model->medico = $params['medico_atendimento'];
+      $model->medico_atendimento_data = isset($params['medico_atendimento_data']) ? date('Y-m-d', strtotime($params['medico_atendimento_data'])) : '';
+      $model->etapas = json_encode($arrEtapas);
 
       $model->save();
 
@@ -373,7 +375,9 @@ class CreateController extends Controller
       $model = new Medicos();
       $model->attributes = $params;
       $model->horarios = serialize($params['horarios']);
-      $model->procedimento_valor = serialize($params['procedimento_valor']);
+      $model->procedimento_valor = json_encode($params['procedimento_valor']);
+      // $model->procedimento_valor = serialize($params['procedimento_valor']);
+      $model->local = serialize($params['local']);
       $model->save();
 
       $transaction->commit();
