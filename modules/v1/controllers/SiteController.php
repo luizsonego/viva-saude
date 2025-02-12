@@ -4,6 +4,7 @@ namespace app\modules\v1\controllers;
 
 use app\controllers\SiteController as ControllersSiteController;
 use app\models\Status;
+use app\models\StatusCode;
 use app\models\User;
 use ImageKit\ImageKit;
 use Symfony\Component\Dotenv\Dotenv;
@@ -49,7 +50,7 @@ class SiteController extends ControllersSiteController
   public function actionIndex()
   {
     return [
-      'status' => Status::STATUS_OK,
+      'status' => StatusCode::STATUS_OK,
       'message' =>
         'You may customize this page by editing the following file:' .
         __FILE__,

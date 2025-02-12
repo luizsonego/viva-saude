@@ -51,11 +51,11 @@ class GetController extends Controller
     $model = new ResourceAtendimento();
     $data = $model->find()->all();
 
-    foreach ($data as &$item) {
-      if (isset($item->etapas) && !empty($item->etapas)) {
-        $item->etapas = json_decode($item->etapas, true);
-      }
-    }
+    // foreach ($data as &$item) {
+    //   if (isset($item->etapas) && !empty($item->etapas)) {
+    //     $item->etapas = json_decode($item->etapas, true);
+    //   }
+    // }
 
     return [
       'status' => StatusCode::STATUS_OK,

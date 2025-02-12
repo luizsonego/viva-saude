@@ -43,7 +43,6 @@ class Atendimento extends ActiveRecord
           'medico_atendimento_local',
           'status_cliente',
           'status',
-          'prioridade',
           'grupo',
           'etiqueta',
           'titular_plano',
@@ -55,6 +54,9 @@ class Atendimento extends ActiveRecord
           'perfil_cliente',
           'onde_deseja_ser_atendido',
           'o_que_deseja',
+          'comentario',
+          'anexos'
+
         ],
         'string'
       ],
@@ -63,6 +65,8 @@ class Atendimento extends ActiveRecord
       [
         [
           'medico',
+          'prioridade',
+          'atendente',
         ],
         'integer'
       ]

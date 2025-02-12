@@ -234,7 +234,7 @@ class UpdateController extends Controller
     try {
       $model = Prioridade::findOne($params['id']);
 
-      $model->setAttributes($params);
+      $model->attributes = $params;
       $model->save();
 
       $transactionDb->commit();
@@ -252,6 +252,7 @@ class UpdateController extends Controller
 
     return $response;
   }
+
   public function actionProfile()
   {
     $params = \Yii::$app->request->post();
@@ -313,11 +314,11 @@ class UpdateController extends Controller
     try {
       $model = Atendimento::findOne($params['id']);
 
-      $arrEtapas = $model['etapas'];
+      $arrEtapas = json_decode($model['etapas']);
 
       $model->attributes = $params;
       array_push($arrEtapas, ['hora' => date('d-m-Y H:m:i'), 'descricao' => 'atendimento alterado pelo atendente {[nome do atendente]}']);
-      $model->etapas = $arrEtapas;
+      $model->etapas = json_encode($arrEtapas);
 
       $model->save();
 
@@ -367,6 +368,90 @@ class UpdateController extends Controller
     }
 
     return $response;
+  }
+  public function actionTrocaPrioridade()
+  {
+    $params = \Yii::$app->request->post();
+    $transactionDb = \Yii::$app->db->beginTransaction();
+
+    try {
+      $model = Atendimento::findOne($params['id']);
+
+      // $arrEtapas = json_decode($model['etapas']);
+
+      $model->attributes = $params;
+      // array_push($arrEtapas, ['hora' => date('d-m-Y H:m:i'), 'descricao' => 'atendimento alterado PRIORIDADE para {$params[status]} pelo atendente {[nome do atendente]}']);
+      // $model->etapas = json_encode($arrEtapas);
+
+      $model->save();
+
+      $transactionDb->commit();
+
+      $response['status'] = 'success';
+      $response['message'] = 'Agendamento atualizado com sucesso!';
+      $response['data'] = $model;
+
+    } catch (\Throwable $th) {
+      $transactionDb->rollBack();
+      $response['status'] = 'error';
+      $response['message'] = $th->getMessage();
+      $response['data'] = [];
+    }
+
+    return $response;
+  }
+  public function actionTrocaAtendente()
+  {
+    $params = \Yii::$app->request->post();
+    $transactionDb = \Yii::$app->db->beginTransaction();
+
+    try {
+      $model = Atendimento::findOne($params['id']);
+
+      $arrEtapas = json_decode($model['etapas']);
+
+      $model->attributes = $params;
+      array_push($arrEtapas, ['hora' => date('d-m-Y H:m:i'), 'descricao' => 'atendimento alterado de atendente para [atendente] por atendente {[nome do atendente]}']);
+      $model->etapas = json_encode($arrEtapas);
+
+      $model->save();
+
+      $transactionDb->commit();
+
+      $response['status'] = 'success';
+      $response['message'] = 'Agendamento atualizado com sucesso!';
+      $response['data'] = $model;
+
+    } catch (\Throwable $th) {
+      $transactionDb->rollBack();
+      $response['status'] = 'error';
+      $response['message'] = $th->getMessage();
+      $response['data'] = [];
+    }
+
+    return $response;
+  }
+
+  public function actionAnexo()
+  {
+    $params = \Yii::$app->request->post();
+    $transactionDb = \Yii::$app->db->beginTransaction();
+
+    try {
+
+      $model = Atendimento::findOne($params['id']);
+      $model->attributes = $params;
+
+      $model->save();
+      $transactionDb->commit();
+
+    } catch (\Throwable $th) {
+      $transactionDb->rollBack();
+      $response['status'] = 'error';
+      $response['message'] = $th->getMessage();
+      $response['data'] = [];
+    }
+
   }
 
 }

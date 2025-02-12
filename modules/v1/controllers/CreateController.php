@@ -85,7 +85,7 @@ class CreateController extends Controller
       $modelMedicos = new Medicos();
       $medico = $modelMedicos->find()->select('nome')->where(['id' => $params['medico_atendimento']])->one();
 
-      $title = "{$params['titular_plano']} solicita atendimento{$para} de {$params['o_que_deseja']}, em {$params['onde_deseja_ser_atendido']} pelo profissional: {$params['medico_atendimento']}";
+      $title = "{$params['titular_plano']} solicita atendimento{$para} de {$params['o_que_deseja']}, em {$params['onde_deseja_ser_atendido']} pelo profissional: {$medico['nome']}";
       array_push($arrEtapas, ['hora' => date('d-m-Y H:m:i'), 'descricao' => 'atendimento iniciado pelo auto-atendimento']);
 
       // $emEspera = isset($params['em_espera']) && $params['em_espera'] !== false ? 'FILA DE ESPERA' : isset($params['"aguardando_vaga']) && $params['aguardando_vaga'] !== false ? '"AGUARDANDO VAGA' : 'ABERTO';
