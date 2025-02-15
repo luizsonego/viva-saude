@@ -1,6 +1,7 @@
 <?php
 namespace app\modules\v1\controllers;
 
+use app\models\Etiqueta;
 use app\models\Medicos;
 use app\models\StatusCode;
 use yii\filters\Cors;
@@ -55,6 +56,24 @@ class SearchController extends Controller
       }
     }
 
+
+    return [
+      'status' => StatusCode::STATUS_OK,
+      'message' => "",
+      'data' => $data
+    ];
+  }
+  public function actionEtiquetasGrupo(int $search = 0)
+  {
+    $model = new Etiqueta();
+    // $data = $model->find()->where(['like', 'procedimento_valor', $search])->all();
+    $data = $model->find()->where(['grupo' => $search])->all();
+
+    // foreach ($data as &$medico) {
+    //   if (!empty($medico->local)) {
+    //     self::is_serialized($medico->local) ? $medico->local = unserialize($medico->local) : [$medico->local];
+    //   }
+    // }
 
     return [
       'status' => StatusCode::STATUS_OK,

@@ -64,10 +64,13 @@ class UserIdentity extends ActiveRecord implements IdentityInterface
      */
     public static function findIdentityByAccessToken($token, $type = null)
     {
+        // return $token;
         // $accessToken = AccessToken::find()->where(['token' => $token])->andWhere(['>', 'expire_at', strtotime('now')])->one();
         $accessToken = User::find()->where(['auth_key' => $token])->one();
+
         if (!$accessToken)
             return $accessToken;
+
         return User::findOne(['id' => $accessToken->id]);
         // return User::findOne(['auth_key' => $token, 'status' => User::STATUS_ACTIVE]);
     }

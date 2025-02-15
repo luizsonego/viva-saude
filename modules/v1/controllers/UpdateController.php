@@ -440,10 +440,25 @@ class UpdateController extends Controller
     try {
 
       $model = Atendimento::findOne($params['id']);
-      $model->attributes = $params;
+      if ($model['anexos'] == null) {
+        $model->anexos = '[]';
+      }
+      $arrAnexos = json_decode($model['anexos']);
+      array_push($arrAnexos, [
+        'nome' => $params['nome'],
+        'url' => $params['url'],
+        'fileType' => $params['fileType'],
+        'fileId' => $params['fileId'],
+      ]);
+      $model->anexos = json_encode($arrAnexos);
 
       $model->save();
+
       $transactionDb->commit();
+
+      $response['status'] = 'success';
+      $response['message'] = 'Anexo enviado!';
+      $response['data'] = $model;
 
     } catch (\Throwable $th) {
       $transactionDb->rollBack();
@@ -451,6 +466,8 @@ class UpdateController extends Controller
       $response['message'] = $th->getMessage();
       $response['data'] = [];
     }
+
+    return $response;
 
   }
 

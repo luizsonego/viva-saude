@@ -1,6 +1,7 @@
 <?php
 namespace app\modules\v1\controllers;
 
+use app\helpers\TokenAuthenticationHelper;
 use app\models\Acoes;
 use app\models\Atendimento;
 use app\models\Especialidade;
@@ -8,6 +9,7 @@ use app\models\Etiqueta;
 use app\models\Medicos;
 use app\models\Origem;
 use app\models\Prioridade;
+use app\models\Profile;
 use app\models\Status;
 use app\models\StatusCode;
 use app\models\Unidades;
@@ -15,6 +17,7 @@ use app\models\User;
 use app\modules\v1\resource\Atendente;
 use app\modules\v1\resource\Atendimento as ResourceAtendimento;
 use app\modules\v1\resource\Grupo;
+use Yii;
 use yii\filters\Cors;
 use yii\filters\VerbFilter;
 use yii\rest\Controller;
@@ -48,14 +51,28 @@ class GetController extends Controller
   }
   public function actionAtendimentos()
   {
-    $model = new ResourceAtendimento();
-    $data = $model->find()->all();
+    $user = TokenAuthenticationHelper::token();
 
-    // foreach ($data as &$item) {
-    //   if (isset($item->etapas) && !empty($item->etapas)) {
-    //     $item->etapas = json_decode($item->etapas, true);
+    $model = new ResourceAtendimento();
+    $data = $model->find()
+      ->where([
+        'or',
+        ['atendente' => $user->id], // Atendimentos do usuário
+        ['and', ['status' => 'ABERTO'], ['atendente' => null]] // Atendimentos abertos sem atendente
+      ])
+      ->all();
+
+    foreach ($data as &$anexos) {
+      if (!empty($anexos->anexos)) {
+        json_decode($anexos->anexos) ? $anexos->anexos = json_decode($anexos->anexos) : $anexos->anexos;
+      }
+    }
+    // foreach ($data as &$etapas) {
+    //   if (!empty($etapas->etapas)) {
+    //     json_decode($etapas->etapas) ? $etapas->etapas = json_decode($etapas->etapas) : $etapas->etapas;
     //   }
     // }
+
 
     return [
       'status' => StatusCode::STATUS_OK,
@@ -214,6 +231,17 @@ class GetController extends Controller
     ];
   }
 
+  public function actionUserAuthenticaded()
+  {
+    $user = TokenAuthenticationHelper::token();
+
+    $profile = Profile::findOne(['user_id' => $user->id]);
+    return [
+      'status' => StatusCode::STATUS_OK,
+      'message' => "",
+      'data' => $profile['cargo']
+    ];
+  }
 
   function is_serialized($data)
   {
