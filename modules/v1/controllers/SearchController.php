@@ -82,6 +82,20 @@ class SearchController extends Controller
     ];
   }
 
+  public function actionBuscaEtiquetas($search)
+  {
+
+    $model = new Etiqueta();
+    $data = $model->find()->where(['id' => explode(',', $search)])->all();
+
+    return [
+      'status' => StatusCode::STATUS_OK,
+      'message' => "",
+      'data' => $data
+    ];
+
+  }
+
   function is_serialized($data)
   {
     // Se não é uma string, não pode ser serializado

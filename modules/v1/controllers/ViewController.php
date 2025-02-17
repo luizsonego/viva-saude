@@ -12,6 +12,7 @@ use app\models\Prioridade;
 use app\models\Profile;
 use app\models\StatusCode;
 use app\models\Unidades;
+use app\modules\v1\resource\Atendente;
 use app\modules\v1\resource\Etiqueta as ResourceEtiqueta;
 use app\modules\v1\resource\Grupo as ResourceGrupo;
 use app\modules\v1\resource\Medicos as ResourceMedicos;
@@ -54,7 +55,9 @@ class ViewController extends Controller
     $model = new ResourceMedicos();
     $data = $model->find()->where(['id' => $id])->one();
 
-    $data->procedimento_valor = unserialize($data['procedimento_valor']);
+    $data->etiquetas = json_decode($data->etiquetas);
+    $data->procedimento_valor = json_decode($data->procedimento_valor);
+    // $data->procedimento_valor = unserialize($data['procedimento_valor']);
     if (!empty($data->local)) {
       self::is_serialized($data->local) ? $data->local = unserialize($data->local) : $data->local;
     }
@@ -92,6 +95,17 @@ class ViewController extends Controller
     return $result !== false || $data === 'b:0;';
   }
 
+  public function actionAtendente($id)
+  {
+    $model = new Atendente();
+    $data = $model->find()->where(['id' => $id])->one();
+
+    return [
+      'status' => StatusCode::STATUS_OK,
+      'message' => "",
+      'data' => $data
+    ];
+  }
   public function actionGrupo($id)
   {
     $model = new ResourceGrupo();

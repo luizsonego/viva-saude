@@ -52,21 +52,30 @@ class GetController extends Controller
   public function actionAtendimentos()
   {
     $user = TokenAuthenticationHelper::token();
+    $modelProfile = new Profile();
+    $profile = $modelProfile->find()->where(['user_id' => $user->id])->one();
 
     $model = new ResourceAtendimento();
-    $data = $model->find()
-      ->where([
-        'or',
-        ['atendente' => $user->id], // Atendimentos do usuário
-        ['and', ['status' => 'ABERTO'], ['atendente' => null]] // Atendimentos abertos sem atendente
-      ])
-      ->all();
+
+    if ($profile->cargo === "gerente") {
+      $data = $model->find()
+        ->all();
+    } else {
+      $data = $model->find()
+        ->where([
+          'and',
+          ['atendente' => $user->id],
+          ['in', 'status', ['ABERTO', 'NOVO']]
+        ])
+        ->all();
+    }
 
     foreach ($data as &$anexos) {
       if (!empty($anexos->anexos)) {
         json_decode($anexos->anexos) ? $anexos->anexos = json_decode($anexos->anexos) : $anexos->anexos;
       }
     }
+
     // foreach ($data as &$etapas) {
     //   if (!empty($etapas->etapas)) {
     //     json_decode($etapas->etapas) ? $etapas->etapas = json_decode($etapas->etapas) : $etapas->etapas;

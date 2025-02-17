@@ -70,6 +70,7 @@ class CreateController extends Controller
 
   public function actionAtendimento()
   {
+    // date_default_timezone_set('America/Sao_Paulo');
     $params = Yii::$app->request->getBodyParams();
 
     $transaction = Yii::$app->db->beginTransaction();
@@ -101,7 +102,9 @@ class CreateController extends Controller
       $model->titulo = $title;
       $model->medico_atendimento = $medico['nome'];
       $model->medico = $params['medico_atendimento'];
-      $model->medico_atendimento_data = isset($params['medico_atendimento_data']) ? date('Y-m-d', strtotime($params['medico_atendimento_data'])) : '';
+      $model->medico_atendimento_data = isset($params['medico_atendimento_data'])
+        ? date('Y-m-d H:i:s', strtotime($params['medico_atendimento_data']))
+        : '';
       $model->etapas = json_encode($arrEtapas);
 
       $model->save();
@@ -376,6 +379,7 @@ class CreateController extends Controller
       $model->attributes = $params;
       $model->horarios = serialize($params['horarios']);
       $model->procedimento_valor = json_encode($params['procedimento_valor']);
+      $model->etiquetas = json_encode($params['etiquetas']);
       // $model->procedimento_valor = serialize($params['procedimento_valor']);
       $model->local = serialize($params['local']);
       $model->save();

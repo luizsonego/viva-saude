@@ -37,7 +37,7 @@ class Medicos extends ActiveRecord
         ],
         'string'
       ],
-      [['horarios', 'procedimento_valor'], 'safe'],
+      [['horarios', 'procedimento_valor', 'etiquetas', 'vagas'], 'safe'],
     ];
   }
 

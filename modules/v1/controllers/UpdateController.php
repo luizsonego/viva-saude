@@ -11,6 +11,7 @@ use app\models\Origem;
 use app\models\Prioridade;
 use app\models\Profile;
 use app\models\Unidades;
+use app\modules\v1\resource\Atendente;
 use yii\filters\Cors;
 use yii\filters\VerbFilter;
 use yii\rest\Controller;
@@ -181,8 +182,12 @@ class UpdateController extends Controller
     try {
       $model = Medicos::findOne($params['id']);
 
+      $arrEtiquetas = json_decode($model['etiquetas']);
+
       $model->setAttributes($params);
       $model->local = serialize($params['localizacao']);
+      array_push($arrEtiquetas, $params['etiquetas']);
+      $model->etiquetas = json_encode($arrEtiquetas);
       $model->save();
 
       $transactionDb->commit();
@@ -420,6 +425,41 @@ class UpdateController extends Controller
 
       $response['status'] = 'success';
       $response['message'] = 'Agendamento atualizado com sucesso!';
+      $response['data'] = $model;
+
+    } catch (\Throwable $th) {
+      $transactionDb->rollBack();
+      $response['status'] = 'error';
+      $response['message'] = $th->getMessage();
+      $response['data'] = [];
+    }
+
+    return $response;
+  }
+  public function actionAtendente()
+  {
+    $params = \Yii::$app->request->post();
+    $transactionDb = \Yii::$app->db->beginTransaction();
+
+    try {
+      $model = Atendente::findOne($params['id']);
+
+      // $arrEtapas = json_decode($model['etapas']);
+
+      $model->attributes = $params;
+
+      if (isset($params['senha'])) {
+        $model->password_hash = \Yii::$app->getSecurity()->generatePasswordHash($params['senha']);
+      }
+      // array_push($arrEtapas, ['hora' => date('d-m-Y H:m:i'), 'descricao' => 'atendimento alterado de atendente para [atendente] por atendente {[nome do atendente]}']);
+      // $model->etapas = json_encode($arrEtapas);
+
+      $model->save();
+
+      $transactionDb->commit();
+
+      $response['status'] = 'success';
+      $response['message'] = 'atendente atualizado com sucesso!';
       $response['data'] = $model;
 
     } catch (\Throwable $th) {
