@@ -55,6 +55,7 @@ class Atendimento extends ActiveRecord
           'onde_deseja_ser_atendido',
           'o_que_deseja',
           'comentario',
+          'observacoes',
         ],
         'string'
       ],

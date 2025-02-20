@@ -351,11 +351,11 @@ class UpdateController extends Controller
     try {
       $model = Atendimento::findOne($params['id']);
 
-      $arrEtapas = json_decode($model['etapas']);
+      // $arrEtapas = json_decode($model['etapas']);
 
       $model->attributes = $params;
-      array_push($arrEtapas, ['hora' => date('d-m-Y H:m:i'), 'descricao' => 'atendimento alterado STATUS para {$params[status]} pelo atendente {[nome do atendente]}']);
-      $model->etapas = json_encode($arrEtapas);
+      // array_push($arrEtapas, ['hora' => date('d-m-Y H:m:i'), 'descricao' => 'atendimento alterado STATUS para {$params[status]} pelo atendente {[nome do atendente]}']);
+      // $model->etapas = json_encode($arrEtapas);
 
       $model->save();
 
@@ -413,11 +413,11 @@ class UpdateController extends Controller
     try {
       $model = Atendimento::findOne($params['id']);
 
-      $arrEtapas = json_decode($model['etapas']);
+      // $arrEtapas = json_decode($model['etapas'], true);
 
       $model->attributes = $params;
-      array_push($arrEtapas, ['hora' => date('d-m-Y H:m:i'), 'descricao' => 'atendimento alterado de atendente para [atendente] por atendente {[nome do atendente]}']);
-      $model->etapas = json_encode($arrEtapas);
+      // array_push($arrEtapas, ['hora' => date('d-m-Y H:m:i'), 'descricao' => 'atendimento alterado de atendente para [atendente] por atendente {[nome do atendente]}']);
+      // $model->etapas = json_encode($arrEtapas);
 
       $model->save();
 
@@ -443,10 +443,11 @@ class UpdateController extends Controller
 
     try {
       $model = Atendente::findOne($params['id']);
+      $profile = Profile::findOne(['user_id' => $params['id']]);
 
       // $arrEtapas = json_decode($model['etapas']);
-
       $model->attributes = $params;
+      $profile->attributes = $params['profile'];
 
       if (isset($params['senha'])) {
         $model->password_hash = \Yii::$app->getSecurity()->generatePasswordHash($params['senha']);
@@ -455,6 +456,7 @@ class UpdateController extends Controller
       // $model->etapas = json_encode($arrEtapas);
 
       $model->save();
+      $profile->save();
 
       $transactionDb->commit();
 

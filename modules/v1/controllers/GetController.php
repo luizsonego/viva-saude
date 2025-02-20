@@ -70,25 +70,25 @@ class GetController extends Controller
         ->all();
     }
 
-    foreach ($data as &$anexos) {
-      if (!empty($anexos->anexos)) {
-        json_decode($anexos->anexos) ? $anexos->anexos = json_decode($anexos->anexos) : $anexos->anexos;
+    foreach ($data as &$item) {
+      if (!empty($item->anexos)) {
+        $item->anexos = json_decode($item->anexos) ?: $item->anexos;
       }
     }
 
-    // foreach ($data as &$etapas) {
-    //   if (!empty($etapas->etapas)) {
-    //     json_decode($etapas->etapas) ? $etapas->etapas = json_decode($etapas->etapas) : $etapas->etapas;
-    //   }
-    // }
-
+    foreach ($data as &$item) {
+      if (!empty($item->etapas)) {
+        if (is_string($item->etapas)) {
+          $item->etapas = json_decode($item->etapas, true) ?: $item->etapas;
+        }
+      }
+    }
 
     return [
       'status' => StatusCode::STATUS_OK,
       'message' => "",
       'data' => $data
     ];
-
   }
 
   public function actionGrupos()

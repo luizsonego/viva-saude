@@ -13,6 +13,7 @@ use app\models\Profile;
 use app\models\StatusCode;
 use app\models\Unidades;
 use app\modules\v1\resource\Atendente;
+use app\modules\v1\resource\Atendimento as ResourceAtendimento;
 use app\modules\v1\resource\Etiqueta as ResourceEtiqueta;
 use app\modules\v1\resource\Grupo as ResourceGrupo;
 use app\modules\v1\resource\Medicos as ResourceMedicos;
@@ -185,8 +186,12 @@ class ViewController extends Controller
   }
   public function actionAtendimento($id)
   {
-    $model = new Atendimento();
+    $model = new ResourceAtendimento();
     $data = $model->find()->where(['id' => $id])->one();
+
+    $data->anexos = json_decode($data->anexos, true) ?: $data->anexos;
+    $data->etapas = json_decode($data->etapas, true) ?: $data->etapas;
+
 
     return [
       'status' => StatusCode::STATUS_OK,

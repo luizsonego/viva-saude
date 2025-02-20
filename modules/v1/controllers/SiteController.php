@@ -71,8 +71,8 @@ class SiteController extends ControllersSiteController
       $url_end_point
     );
 
-    // date_default_timezone_set('UTC');
-    // $date = strtotime('-90 minutes');
+    date_default_timezone_set('UTC');
+    $date = strtotime('-90 minutes');
 
     $authenticationParamters = $imageKit->getAuthenticationParameters();
 

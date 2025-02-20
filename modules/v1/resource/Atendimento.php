@@ -57,7 +57,7 @@ class Atendimento extends ModelsAtendimento
   }
   public function getProfile()
   {
-    return $this->hasOne(Profile::className(), ['id' => 'atendente']);
+    return $this->hasOne(Profile::className(), ['user_id' => 'atendente']);
   }
 
 }
