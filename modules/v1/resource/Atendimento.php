@@ -22,6 +22,7 @@ class Atendimento extends ModelsAtendimento
     $fields['prioridadeAtendimento'] = 'prioridadeAtendimento';
     $fields['especialidades'] = 'especialidades';
     $fields['profile'] = 'profile';
+    $fields['medicoProfile'] = 'medicoProfile';
 
     return $fields;
   }
@@ -58,6 +59,12 @@ class Atendimento extends ModelsAtendimento
   public function getProfile()
   {
     return $this->hasOne(Profile::className(), ['user_id' => 'atendente']);
+  }
+  public function getMedicoProfile()
+  {
+    $model = $this->hasOne(Medicos::className(), ['id' => 'medico']);
+
+    return $model;
   }
 
 }

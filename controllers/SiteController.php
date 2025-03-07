@@ -216,7 +216,7 @@ class SiteController extends Controller
       // }
 
       // $personalData = \app\modules\v1\resource\Profile::find()->where(['user_id' => $token->id])->one();
-      $user->save();
+      // $user->save();
 
       $response['status'] = StatusCode::STATUS_OK;
       $response['message'] = 'Login Succeed!';
@@ -372,6 +372,12 @@ class SiteController extends Controller
     return $response;
   }
 
+  public function actionPass()
+  {
+    $user = new User();
+    $user->setPassword('1234');
+    return $user;
+  }
 
   public function actionUser()
   {
@@ -560,6 +566,59 @@ class SiteController extends Controller
     $model = new User();
     $model->setPassword('123456');
     return $model;
+  }
+
+  public function actionGetAccess()
+  {
+    $user = self::token();
+
+    if (!isset($user->auth_key)) {
+      return [
+        'status' => StatusCode::STATUS_UNAUTHORIZED,
+        'message' => "No token. <",
+        'data' => []
+      ];
+    }
+
+    $token = \app\modules\v1\resource\User::findIdentityByAccessToken($user->auth_key);
+    if (!$token) {
+      return [
+        'status' => StatusCode::STATUS_UNAUTHORIZED,
+        'message' => "No token.",
+        'data' => []
+      ];
+    }
+
+    return [
+      'status' => StatusCode::STATUS_OK,
+      'message' => "",
+      'data' => ['access' => $token->access_given]
+    ];
+  }
+
+  public static function token()
+  {
+    $authHeader = Yii::$app->request->headers->get('Authorization');
+    preg_match('/^Bearer\s+(.*?)$/', $authHeader, $matches);
+    if (empty($authHeader)) {
+      return [
+        'status' => StatusCode::STATUS_BAD_REQUEST,
+        'message' => "No token.",
+        'data' => []
+      ];
+    }
+
+    $user = \app\modules\v1\resource\User::getUser($matches[1]);
+    return $user;
+    if (!$user) {
+      return [
+        'status' => StatusCode::STATUS_BAD_REQUEST,
+        'message' => "No token.",
+        'data' => []
+      ];
+      // throw new Exception("Invalid Token", Status::STATUS_UNAUTHORIZED);
+    }
+    return $user;
   }
 
 

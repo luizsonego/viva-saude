@@ -29,7 +29,10 @@ class SearchController extends Controller
   public function actionMedicosProcedimento(string $search = '')
   {
     $model = new Medicos();
-    $data = $model->find()->where(['like', 'procedimento_valor', $search])->all();
+    $data = $model->find()
+      ->where(['like', 'procedimento_valor', $search])
+      ->orderBy(['nome' => SORT_ASC])
+      ->all();
 
     foreach ($data as &$medico) {
       if (!empty($medico->local)) {

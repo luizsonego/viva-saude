@@ -64,8 +64,8 @@ class GetController extends Controller
       $data = $model->find()
         ->where([
           'and',
-          ['atendente' => $user->id],
-          ['in', 'status', ['ABERTO', 'NOVO']]
+          // ['atendente' => $user->id],
+          ['in', 'status', ['ABERTO', 'NOVO', 'AGUARDANDO VAGA', 'FILA DE ESPERA', 'EM ANALISE', 'PAGAMENTO', 'AGUARDANDO AUTORIZACAO', 'CONCLUIDO']]
         ])
         ->all();
     }
@@ -84,11 +84,43 @@ class GetController extends Controller
       }
     }
 
+    foreach ($data as &$item) {
+      // Converter 'etapas' para array, se necessário
+      if (!empty($item->etapas)) {
+        if (is_string($item->etapas)) {
+          $item->etapas = json_decode($item->etapas, true) ?: $item->etapas;
+        }
+      }
+
+      // Converter 'medicoProfile->etiquetas' para array, se necessário
+      if (!empty($item->medicoProfile->etiquetas)) {
+        if (is_string($item->medicoProfile->etiquetas)) {
+          $item->medicoProfile->etiquetas = json_decode($item->medicoProfile->etiquetas, true) ?: explode(',', str_replace(['[', ']', '"'], '', $item->medicoProfile->etiquetas));
+        }
+      }
+    }
+
+    // $ids = flattenArray($etiquetas);
+
     return [
       'status' => StatusCode::STATUS_OK,
       'message' => "",
       'data' => $data
     ];
+  }
+
+  public function actionEtiquetasMedico()
+  {
+
+  }
+
+  function flattenArray($array)
+  {
+    $result = [];
+    array_walk_recursive($array, function ($item) use (&$result) {
+      $result[] = $item;
+    });
+    return array_unique($result); // Remover duplicatas
   }
 
   public function actionGrupos()
@@ -193,7 +225,6 @@ class GetController extends Controller
   }
 
 
-
   public function actionAtendente()
   {
     $model = new Atendente();
@@ -212,7 +243,9 @@ class GetController extends Controller
   public function actionProcedimentos()
   {
     $model = new Medicos();
-    $data = $model->find()->all();
+    $data = $model->find()
+      ->orderBy(['nome' => SORT_ASC])
+      ->all();
 
     $procedimentos = [];
 
@@ -232,11 +265,26 @@ class GetController extends Controller
 
     // Remove duplicatas
     $procedimentos = array_values(array_unique($procedimentos));
+    sort($procedimentos);
 
     return [
       'status' => StatusCode::STATUS_OK,
       'message' => "",
       'data' => $procedimentos
+    ];
+  }
+
+  public function actionProcedimentoCor(string $prcedimento)
+  {
+    $model = new Acoes();
+    $data = $model->find()
+      ->where(['nome' => $prcedimento])
+      ->one();
+
+    return [
+      'status' => StatusCode::STATUS_OK,
+      'message' => "",
+      'data' => $data
     ];
   }
 
@@ -249,6 +297,42 @@ class GetController extends Controller
       'status' => StatusCode::STATUS_OK,
       'message' => "",
       'data' => $profile['cargo']
+    ];
+  }
+
+  public function actionMedicosLocal()
+  {
+    $model = new Medicos();
+    // $data = $model->find()->where(['like', 'procedimento_valor', $search])->all();
+    $data = $model->find()->all();
+
+    foreach ($data as &$medico) {
+      if (!empty($medico->local)) {
+        self::is_serialized($medico->local) ? $medico->local = unserialize($medico->local) : [$medico->local];
+      }
+    }
+
+
+    return [
+      'status' => StatusCode::STATUS_OK,
+      'message' => "",
+      'data' => $data
+    ];
+  }
+
+  public function actionOndeSerAtendido()
+  {
+
+    $model = new Atendimento();
+    $data = $model->find()
+      ->select(['onde_deseja_ser_atendido'])
+      ->distinct()
+      ->all();
+
+    return [
+      'status' => StatusCode::STATUS_OK,
+      'message' => "",
+      'data' => $data
     ];
   }
 

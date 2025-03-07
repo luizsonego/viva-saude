@@ -62,7 +62,7 @@ class CreateController extends Controller
   public function actionIndex()
   {
     return [
-      'status' => StatusCode::STATUS_OK,
+      'status' => \app\models\StatusCode::STATUS_OK,
       'message' => "You may customize this page by editing the following file:" . __FILE__,
       'data' => ''
     ];
@@ -70,61 +70,147 @@ class CreateController extends Controller
 
   public function actionAtendimento()
   {
-    // date_default_timezone_set('America/Sao_Paulo');
     $params = Yii::$app->request->getBodyParams();
-
     $transaction = Yii::$app->db->beginTransaction();
+
     try {
-
       $arrEtapas = [];
-      $outro = isset($params['nome_outro']);
-      $para = $params['para_quem'] === 'titular' ? ',' : " para {$outro},";
-
-      // $modelAcao = new Acoes();
-      // $desejo = $modelAcao->find()->select('nome')->where(['id' => $params['o_que_deseja']])->one();
+      $outro = isset($params['nome_outro']) ? (string) $params['nome_outro'] : '';
+      $para = ($params['para_quem'] === 'titular') ? ',' : " para {$outro},";
 
       $modelMedicos = new Medicos();
-      $medico = $modelMedicos->find()->select('nome')->where(['id' => $params['medico_atendimento']])->one();
+      $medicoNome = '';
 
-      $title = "{$params['titular_plano']} solicita atendimento{$para} de {$params['o_que_deseja']}, em {$params['onde_deseja_ser_atendido']} pelo profissional: {$medico['nome']}";
-      array_push($arrEtapas, ['hora' => date('d-m-Y H:m:i'), 'descricao' => 'atendimento iniciado pelo auto-atendimento']);
+      // Verifica se o ID do médico foi enviado e busca o nome
+      if (!empty($params['medico_atendimento'])) {
+        $medico = $modelMedicos->find()
+          ->select('nome')
+          ->where(['id' => $params['medico_atendimento']])
+          ->one();
+        $medicoNome = $medico ? $medico->nome : '';
+      }
 
-      // $emEspera = isset($params['em_espera']) && $params['em_espera'] !== false ? 'FILA DE ESPERA' : isset($params['"aguardando_vaga']) && $params['aguardando_vaga'] !== false ? '"AGUARDANDO VAGA' : 'ABERTO';
-      // $aguardandoVaga = isset($params['"aguardando_vaga']) && $params['aguardando_vaga'] !== false ? '"AGUARDANDO VAGA' : 'ABERTO';
+      // **Correção do erro: Garante que "onde_deseja_ser_atendido" seja string**
+      $ondeAtendido = isset($params['onde_deseja_ser_atendido']) ? (string) $params['onde_deseja_ser_atendido'] : 'o';
+
+      // Construção do título do atendimento
+      if (!empty($params['o_que_deseja']) && !empty($ondeAtendido)) {
+        $title = "{$params['titular_plano']} solicita atendimento{$para} de {$params['o_que_deseja']}, em {$ondeAtendido} pelo profissional: {$medicoNome}";
+      } else {
+        $title = "{$params['titular_plano']} solicita atendimento{$para}";
+      }
+
+      // Adiciona a etapa inicial do atendimento
+      $arrEtapas[] = [
+        'hora' => date('d-m-Y H:i:s'),
+        'descricao' => 'Atendimento iniciado pelo auto-atendimento'
+      ];
+
+      // Determina o status do atendimento
       $emEspera = !empty($params['em_espera']) ? 'FILA DE ESPERA' :
         (!empty($params['aguardando_vaga']) ? 'AGUARDANDO VAGA' : 'ABERTO');
 
+      // Criação do modelo de atendimento
       $model = new Atendimento();
       $model->attributes = $params;
       $model->status = $emEspera;
-      // $model->atendimento_iniciado = date('d-m-Y H:m:i');
-      $model->atendido_por = isset($params['atendido_por']) ? $params['atendido_por'] : 'AUTO-ATENDIMENTO';
+      $model->atendimento_iniciado = date('Y-m-d H:i:s');
+      $model->atendido_por = $params['atendido_por'] ?? 'AUTO-ATENDIMENTO';
       $model->titulo = $title;
-      $model->medico_atendimento = $medico['nome'];
-      $model->medico = $params['medico_atendimento'];
-      $model->medico_atendimento_data = isset($params['medico_atendimento_data'])
+      $model->onde_deseja_ser_atendido = $ondeAtendido;
+      $model->medico_atendimento = $medicoNome;
+      $model->medico = $params['medico_atendimento'] ?? null;
+      $model->medico_atendimento_data = !empty($params['medico_atendimento_data'])
         ? date('Y-m-d H:i:s', strtotime($params['medico_atendimento_data']))
-        : '';
-      $model->etapas = json_encode($arrEtapas);
+        : null;
+      $model->etapas = json_encode($arrEtapas, JSON_UNESCAPED_UNICODE);
 
-      $model->save();
+
+
+      // Salva o modelo no banco
+      if (!$model->save()) {
+        throw new \Exception('Erro ao salvar atendimento: ' . json_encode($model->getErrors(), JSON_UNESCAPED_UNICODE));
+      }
 
       $transaction->commit();
 
-      $response['status'] = StatusCode::STATUS_CREATED;
-      $response['message'] = 'Data is created!';
-      $response['data'] = [];
+      return [
+        'status' => StatusCode::STATUS_CREATED,
+        'message' => 'Atendimento criado com sucesso!',
+        'data' => $model->attributes,
+      ];
 
     } catch (\Throwable $th) {
       $transaction->rollBack();
-      $response['status'] = StatusCode::STATUS_ERROR;
-      $response['message'] = "Error: {$th->getMessage()}";
-      $response['data'] = [];
+      return [
+        'status' => StatusCode::STATUS_ERROR,
+        'message' => "Erro ao processar atendimento: " . $th->getMessage(),
+        'data' => [],
+      ];
     }
-
-    return $response;
-
   }
+
+
+
+  // public function actionAtendimento()
+  // {
+  //   $params = Yii::$app->request->getBodyParams();
+
+  //   $transaction = Yii::$app->db->beginTransaction();
+  //   try {
+
+  //     $arrEtapas = [];
+  //     $outro = isset($params['nome_outro']);
+  //     $para = $params['para_quem'] === 'titular' ? ',' : " para {$outro},";
+
+  //     $modelMedicos = new Medicos();
+
+  //     if (isset($params['medico_atendimento'])) {
+  //       $medico = $modelMedicos->find()->select('nome')->where(['id' => $params['medico_atendimento']])->one();
+  //     }
+
+  //     $title = '';
+  //     if (isset($params['o_que_deseja']) || isset($params['onde_deseja_ser_atendido']) || isset($medico['nome'])) {
+  //       $title = "{$params['titular_plano']} solicita atendimento{$para} de {$params['o_que_deseja']}, em {$params['onde_deseja_ser_atendido']} pelo profissional: {$medico['nome']}";
+  //     } else {
+  //       $title = "{$params['titular_plano']} solicita atendimento{$para}";
+  //     }
+
+  //     array_push($arrEtapas, ['hora' => date('d-m-Y H:m:i'), 'descricao' => 'atendimento iniciado pelo auto-atendimento']);
+
+  //     $emEspera = !empty($params['em_espera']) ? 'FILA DE ESPERA' :
+  //       (!empty($params['aguardando_vaga']) ? 'AGUARDANDO VAGA' : 'ABERTO');
+
+  //     $model = new Atendimento();
+  //     $model->attributes = $params;
+  //     $model->status = $emEspera;
+  //     $model->atendido_por = isset($params['atendido_por']) ? $params['atendido_por'] : 'AUTO-ATENDIMENTO';
+  //     $model->titulo = $title;
+  //     $model->medico_atendimento = !isset($medico['nome']) ? '' : $medico['nome'];
+  //     $model->medico = !isset($params['medico_atendimento']) ? null : $params['medico_atendimento'];
+  //     $model->medico_atendimento_data = isset($params['medico_atendimento_data'])
+  //       ? date('Y-m-d H:i:s', strtotime($params['medico_atendimento_data']))
+  //       : '';
+  //     $model->etapas = json_encode($arrEtapas);
+
+  //     $model->save();
+
+  //     $transaction->commit();
+
+  //     $response['status'] = StatusCode::STATUS_CREATED;
+  //     $response['message'] = 'Data is created!';
+  //     $response['data'] = [];
+
+  //   } catch (\Throwable $th) {
+  //     $transaction->rollBack();
+  //     $response['status'] = StatusCode::STATUS_ERROR;
+  //     $response['message'] = "Error: {$th}";
+  //     $response['data'] = [];
+  //   }
+
+  //   return $response;
+
+  // }
 
   /**
    * Grupo é os serviços que o usuário pode escolher para atendimento (ex: Cardio, dentista, etc)
@@ -378,8 +464,8 @@ class CreateController extends Controller
       $model = new Medicos();
       $model->attributes = $params;
       $model->horarios = serialize($params['horarios']);
-      $model->procedimento_valor = json_encode($params['procedimento_valor']);
-      $model->etiquetas = json_encode($params['etiquetas']);
+      $model->procedimento_valor = json_encode($params['procedimento_valor'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+      $model->etiquetas = html_entity_decode(json_encode($params['etiquetas'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
       // $model->procedimento_valor = serialize($params['procedimento_valor']);
       $model->local = serialize($params['local']);
       $model->save();

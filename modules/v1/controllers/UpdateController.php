@@ -182,12 +182,28 @@ class UpdateController extends Controller
     try {
       $model = Medicos::findOne($params['id']);
 
-      $arrEtiquetas = json_decode($model['etiquetas']);
+      // $arrEtiquetas = json_decode($model['etiquetas']);
 
       $model->setAttributes($params);
-      $model->local = serialize($params['localizacao']);
-      array_push($arrEtiquetas, $params['etiquetas']);
-      $model->etiquetas = json_encode($arrEtiquetas);
+      // $model->horarios = serialize($params['horarios']);
+      $model->procedimento_valor =
+        json_encode(
+          $params['procedimento_valor'],
+          JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
+        );
+      $model->etiquetas =
+        html_entity_decode(
+          json_encode(
+            $params['etiquetas'],
+            JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
+          )
+        );
+      // $model->procedimento_valor = serialize($params['procedimento_valor']);
+      // $model->local = serialize($params['local']);
+
+      $model->local = serialize($params['local']);
+      // array_push($arrEtiquetas, $params['etiquetas']);
+      // $model->etiquetas = json_encode($arrEtiquetas, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
       $model->save();
 
       $transactionDb->commit();
