@@ -186,19 +186,120 @@ class ViewController extends Controller
   }
   public function actionAtendimento($id)
   {
+    if (empty($id) || !is_numeric($id)) {
+      return [
+        'status' => StatusCode::STATUS_BAD_REQUEST,
+        'message' => 'ID inválido.',
+        'data' => null
+      ];
+    }
+
     $model = new ResourceAtendimento();
     $data = $model->find()->where(['id' => $id])->one();
 
-    $data->anexos = json_decode($data->anexos, true) ?: $data->anexos;
-    $data->etapas = json_decode($data->etapas, true) ?: $data->etapas;
+    if (!$data) {
+      return [
+        'status' => StatusCode::STATUS_NOT_FOUND,
+        'message' => 'Atendimento não encontrado.',
+        'data' => null
+      ];
+    }
 
+    // Verifica se anexos é uma string antes de tentar decodificar
+    if (!empty($data->anexos)) {
+      if (is_string($data->anexos)) {
+        $data->anexos = json_decode($data->anexos, true) ?: $data->anexos;
+      }
+    } else {
+      $data->anexos = [];
+    }
 
+    // Verifica se etapas é uma string antes de tentar decodificar
+    if (!empty($data->etapas)) {
+      if (is_string($data->etapas)) {
+        $data->etapas = json_decode($data->etapas, true) ?: $data->etapas;
+      }
+    } else {
+      $data->etapas = [];
+    }
+
+    // Converter 'medicoProfile->etiquetas' para array, se necessário
+    if (!empty($data->medicoProfile) && !empty($data->medicoProfile->etiquetas)) {
+      if (is_string($data->medicoProfile->etiquetas)) {
+        $data->medicoProfile->etiquetas = json_decode($data->medicoProfile->etiquetas, true) ?: 
+          explode(',', str_replace(['[', ']', '"'], '', $data->medicoProfile->etiquetas));
+      }
+    }
+
+    $temporizador = $this->processarTemporizador($data);
+    
     return [
       'status' => StatusCode::STATUS_OK,
       'message' => "",
-      'data' => $data
+      'data' => [
+        'atendimento' => $data,
+        'temporizador' => $temporizador
+      ]
     ];
   }
 
+  private function processarTemporizador(&$data)
+  {
+    $statusTemporizadores = [
+      'ABERTO' => 30 * 60,
+      'EM ANALISE' => 60 * 60,
+      'AGUARDANDO PAGAMENTO' => 24 * 60 * 60,
+      'AUTORIZAÇÃO' => 3 * 60 * 60,
+      'PAGAMENTO EFETUADO' => 60 * 60,
+      'FILA DE ESPERA' => null,
+      'AGUARDANDO VAGA' => 48 * 60 * 60
+    ];
+
+    $statusAtual = strtoupper($data->status);
+    $ultimoStatusAlterado = $this->getUltimaAlteracaoStatus($data->etapas);
+
+    if ($ultimoStatusAlterado && isset($statusTemporizadores[$statusAtual]) && $statusTemporizadores[$statusAtual] !== null) {
+      $tempoExpiracao = strtotime($ultimoStatusAlterado) + $statusTemporizadores[$statusAtual];
+      $tempoRestante = $tempoExpiracao - time();
+      
+      // Verificar se está em atraso
+      if ($tempoRestante <= 0) {
+        // $data->em_atraso = true;
+        // $data->tempo_atraso = date('Y-m-d H:i:s', $tempoExpiracao);
+        // if (!$data->save()) {
+        //   error_log('Erro ao salvar o status atualizado.');
+        // }
+        return [
+          'em_atraso' => true,
+          'tempo_atraso' => date('Y-m-d H:i:s', $tempoExpiracao)
+        ];
+      }
+      
+      return [
+        'tempo_restante' => max(0, $tempoRestante),
+        'expira_em' => date('Y-m-d H:i:s', $tempoExpiracao),
+        'em_atraso' => false
+      ];
+    }
+    
+    return null;
+  }
+
+  private function getUltimaAlteracaoStatus($etapas)
+  {
+    if (!is_array($etapas)) {
+      return null;
+    }
+
+    $ultimoStatus = null;
+    foreach ($etapas as $etapa) {
+      if (isset($etapa['descricao']) && strpos(strtolower($etapa['descricao']), 'status foi alterado') !== false) {
+        $ultimoStatus = $etapa['hora'] ?? null;
+      }
+    }
+    return $ultimoStatus;
+  }
 
 }
+
+

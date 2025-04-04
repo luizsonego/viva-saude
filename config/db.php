@@ -6,7 +6,7 @@ $dotenv->load(__DIR__ . '/../.env');
 
 return [
     'class' => 'yii\db\Connection',
-    // 'dsn' => 'mysql:host=api-php-1:3306;dbname=monaco',
+    // 'dsn' => 'mysql:host=viva-saude-mysql-1:3312;dbname=clinica',
     'dsn' =>
         'mysql:host=' .
         $_ENV['DB_HOST'] .

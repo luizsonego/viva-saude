@@ -64,11 +64,11 @@ class GetController extends Controller
       $data = $model->find()
         ->where([
           'and',
-          // ['atendente' => $user->id],
-          ['in', 'status', ['ABERTO', 'NOVO', 'AGUARDANDO VAGA', 'FILA DE ESPERA', 'EM ANALISE', 'PAGAMENTO', 'AGUARDANDO AUTORIZACAO', 'CONCLUIDO']]
+          ['in', 'status', ['ABERTO', 'NOVO', 'AGUARDANDO VAGA', 'FILA DE ESPERA', 'EM ANALISE', 'PAGAMENTO', 'AGUARDANDO AUTORIZACAO', 'CONCLUIDO', 'PAGAMENTO EFETUADO']]
         ])
         ->all();
     }
+
 
     foreach ($data as &$item) {
       if (!empty($item->anexos)) {
@@ -76,15 +76,16 @@ class GetController extends Controller
       }
     }
 
+    $processedData = [];
+    $temporizador = [];
+
     foreach ($data as &$item) {
       if (!empty($item->etapas)) {
         if (is_string($item->etapas)) {
           $item->etapas = json_decode($item->etapas, true) ?: $item->etapas;
         }
       }
-    }
 
-    foreach ($data as &$item) {
       // Converter 'etapas' para array, se necessário
       if (!empty($item->etapas)) {
         if (is_string($item->etapas)) {
@@ -98,9 +99,9 @@ class GetController extends Controller
           $item->medicoProfile->etiquetas = json_decode($item->medicoProfile->etiquetas, true) ?: explode(',', str_replace(['[', ']', '"'], '', $item->medicoProfile->etiquetas));
         }
       }
-    }
 
-    // $ids = flattenArray($etiquetas);
+      $item->temporizador = $this->processarTemporizador($item);
+    }
 
     return [
       'status' => StatusCode::STATUS_OK,
@@ -108,6 +109,8 @@ class GetController extends Controller
       'data' => $data
     ];
   }
+
+  
 
   public function actionEtiquetasMedico()
   {
@@ -361,5 +364,54 @@ class GetController extends Controller
     // Tenta unserializar a string
     $result = @unserialize($data);
     return $result !== false || $data === 'b:0;';
+  }
+
+  private function processarTemporizador(&$data)
+  {
+    $statusTemporizadores = [
+      'ABERTO' => 30 * 60,
+      'EM ANALISE' => 60 * 60,
+      'AGUARDANDO PAGAMENTO' => 24 * 60 * 60,
+      'AUTORIZAÇÃO' => 3 * 60 * 60,
+      'PAGAMENTO EFETUADO' => 60 * 60,
+      'FILA DE ESPERA' => null,
+      'AGUARDANDO VAGA' => 48 * 60 * 60
+    ];
+
+    $statusAtual = strtoupper($data->status);
+    $ultimoStatusAlterado = $this->getUltimaAlteracaoStatus($data->etapas);
+
+    if ($ultimoStatusAlterado && isset($statusTemporizadores[$statusAtual]) && $statusTemporizadores[$statusAtual] !== null) {
+      $tempoExpiracao = strtotime($ultimoStatusAlterado) + $statusTemporizadores[$statusAtual];
+      $tempoRestante = $tempoExpiracao - time();
+      // if ($tempoRestante <= 0) {
+      // $data->em_atraso = true;
+      // $data->tempo_atraso = date('Y-m-d H:i:s', $tempoExpiracao);
+      // if (!$data->save()) {
+      //   error_log('Erro ao salvar o status atualizado.');
+      // }
+      // return true;
+      // }
+      return [
+        'tempo_restante' => max(0, $tempoRestante),
+        'expira_em' => date('Y-m-d H:i:s', $tempoExpiracao)
+      ];
+    }
+    return null;
+  }
+
+  private function getUltimaAlteracaoStatus($etapas)
+  {
+    if (!is_array($etapas)) {
+      return null;
+    }
+
+    $ultimoStatus = null;
+    foreach ($etapas as $etapa) {
+      if (isset($etapa['descricao']) && strpos(strtolower($etapa['descricao']), 'status foi alterado') !== false) {
+        $ultimoStatus = $etapa['hora'] ?? null;
+      }
+    }
+    return $ultimoStatus;
   }
 }

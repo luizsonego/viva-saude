@@ -19,7 +19,7 @@ class Atendimento extends ModelsAtendimento
     $fields['qualMedico'] = 'medico';
     $fields['acoes'] = 'acoes';
     $fields['unidades'] = 'unidades';
-    $fields['prioridadeAtendimento'] = 'prioridadeAtendimento';
+    $fields['prioridadeAtendimentos'] = 'prioridadeAtendimentos';
     $fields['especialidades'] = 'especialidades';
     $fields['profile'] = 'profile';
     $fields['medicoProfile'] = 'medicoProfile';
@@ -48,7 +48,7 @@ class Atendimento extends ModelsAtendimento
   {
     return $this->hasOne(Acoes::className(), ['id' => 'o_que_deseja']);
   }
-  public function getPrioridadeAtendimento()
+  public function getPrioridadeAtendimentos()
   {
     return $this->hasOne(Prioridade::className(), ['id' => 'prioridade']);
   }

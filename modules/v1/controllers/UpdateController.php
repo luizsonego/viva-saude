@@ -1,6 +1,7 @@
 <?php
 namespace app\modules\v1\controllers;
 
+use app\helpers\TokenAuthenticationHelper;
 use app\models\Acoes;
 use app\models\Atendimento;
 use app\models\Especialidade;
@@ -12,6 +13,7 @@ use app\models\Prioridade;
 use app\models\Profile;
 use app\models\Unidades;
 use app\modules\v1\resource\Atendente;
+use Yii;
 use yii\filters\Cors;
 use yii\filters\VerbFilter;
 use yii\rest\Controller;
@@ -329,19 +331,45 @@ class UpdateController extends Controller
 
   public function actionAtendimento()
   {
-    $params = \Yii::$app->request->post();
-    $transactionDb = \Yii::$app->db->beginTransaction();
-
+    $params = Yii::$app->request->post();
+    $transactionDb = Yii::$app->db->beginTransaction();
     try {
-      $model = Atendimento::findOne($params['id']);
+      $userToken = TokenAuthenticationHelper::token();
+      if (!$userToken || !isset($userToken['id'])) {
+        throw new \Exception('Token de autenticação inválido.');
+      }
 
-      $arrEtapas = json_decode($model['etapas']);
+      $profile = Profile::findOne(['user_id' => $userToken['id']]);
+      if (!$profile) {
+        throw new \Exception('Perfil do usuário não encontrado.');
+      }
+      $atendente = "{$profile['name']} ({$profile['email']})";
+
+
+      if (empty($params['id']) || !is_numeric($params['id'])) {
+        throw new \Exception('ID do atendimento inválido.');
+      }
+      $model = Atendimento::findOne($params['id']);
+      if (!$model) {
+        throw new \Exception('Atendimento não encontrado.');
+      }
+
+      $arrEtapas = json_decode($model->etapas, true);
+      if (!is_array($arrEtapas)) {
+        $arrEtapas = []; // Garante que sempre seja um array
+      }
 
       $model->attributes = $params;
-      array_push($arrEtapas, ['hora' => date('d-m-Y H:m:i'), 'descricao' => 'atendimento alterado pelo atendente {[nome do atendente]}']);
+      array_push($arrEtapas, [
+        "hora" => date('d-m-Y H:i:s'),
+        "descricao" => "Atendimento alterado pelo atendente {$atendente}"
+      ]);
       $model->etapas = json_encode($arrEtapas);
 
-      $model->save();
+      if (!$model->save()) {
+        Yii::error("Erro ao atualizar atendimento: " . json_encode($model->getErrors(), JSON_UNESCAPED_UNICODE), 'atendimento');
+        throw new \Exception('Erro ao atualizar atendimento.');
+      }
 
       $transactionDb->commit();
 
@@ -351,9 +379,12 @@ class UpdateController extends Controller
 
     } catch (\Throwable $th) {
       $transactionDb->rollBack();
-      $response['status'] = 'error';
-      $response['message'] = $th->getMessage();
-      $response['data'] = [];
+      Yii::error("Erro ao atualizar atendimento: {$th->getMessage()}", 'atendimento');
+      return [
+        'status' => 'error',
+        'message' => 'Erro ao atualizar atendimento, tente novamente.',
+        'data' => [],
+      ];
     }
 
     return $response;
@@ -363,15 +394,38 @@ class UpdateController extends Controller
   {
     $params = \Yii::$app->request->post();
     $transactionDb = \Yii::$app->db->beginTransaction();
-
+    
     try {
+      $userToken = TokenAuthenticationHelper::token();
+      if (!$userToken || !isset($userToken['id'])) {
+        throw new \Exception('Token de autenticação inválido.');
+      }
+
+      $profile = Profile::findOne(['user_id' => $userToken['id']]);
+      if (!$profile) {
+        throw new \Exception('Perfil do usuário não encontrado.');
+      }
+      $atendente = "{$profile['name']} ({$profile['email']})";
+
+      if (empty($params['id']) || !is_numeric($params['id'])) {
+        throw new \Exception('ID do atendimento inválido.');
+      }
       $model = Atendimento::findOne($params['id']);
 
-      // $arrEtapas = json_decode($model['etapas']);
+      $arrEtapas = is_string($model->etapas) ? json_decode($model->etapas, true) : $model->etapas;
+
+      // Garante que $arrEtapas sempre seja um array
+      if (!is_array($arrEtapas)) {
+        $arrEtapas = [];
+      }
+
 
       $model->attributes = $params;
-      // array_push($arrEtapas, ['hora' => date('d-m-Y H:m:i'), 'descricao' => 'atendimento alterado STATUS para {$params[status]} pelo atendente {[nome do atendente]}']);
-      // $model->etapas = json_encode($arrEtapas);
+      array_push($arrEtapas, [
+        "hora" => date('d-m-Y H:i:s'),
+        "descricao" => "Status foi alterado por {$atendente}"
+      ]);
+      $model->etapas = json_encode($arrEtapas);
 
       $model->save();
 
@@ -396,13 +450,35 @@ class UpdateController extends Controller
     $transactionDb = \Yii::$app->db->beginTransaction();
 
     try {
+      $userToken = TokenAuthenticationHelper::token();
+      if (!$userToken || !isset($userToken['id'])) {
+        throw new \Exception('Token de autenticação inválido.');
+      }
+
+      $profile = Profile::findOne(['user_id' => $userToken['id']]);
+      if (!$profile) {
+        throw new \Exception('Perfil do usuário não encontrado.');
+      }
+      $atendente = "{$profile['name']} ({$profile['email']})";
+
+      if (empty($params['id']) || !is_numeric($params['id'])) {
+        throw new \Exception('ID do atendimento inválido.');
+      }
       $model = Atendimento::findOne($params['id']);
 
-      // $arrEtapas = json_decode($model['etapas']);
+      $arrEtapas = is_string($model->etapas) ? json_decode($model->etapas, true) : $model->etapas;
+
+      // Garante que $arrEtapas sempre seja um array
+      if (!is_array($arrEtapas)) {
+        $arrEtapas = [];
+      }
 
       $model->attributes = $params;
-      // array_push($arrEtapas, ['hora' => date('d-m-Y H:m:i'), 'descricao' => 'atendimento alterado PRIORIDADE para {$params[status]} pelo atendente {[nome do atendente]}']);
-      // $model->etapas = json_encode($arrEtapas);
+      array_push($arrEtapas, [
+        "hora" => date('d-m-Y H:i:s'),
+        "descricao" => "Prioridade foi alterado por  {$atendente}"
+      ]);
+      $model->etapas = json_encode($arrEtapas);
 
       $model->save();
 
@@ -427,13 +503,36 @@ class UpdateController extends Controller
     $transactionDb = \Yii::$app->db->beginTransaction();
 
     try {
+      $userToken = TokenAuthenticationHelper::token();
+      if (!$userToken || !isset($userToken['id'])) {
+        throw new \Exception('Token de autenticação inválido.');
+      }
+
+      $profile = Profile::findOne(['user_id' => $userToken['id']]);
+      if (!$profile) {
+        throw new \Exception('Perfil do usuário não encontrado.');
+      }
+      $atendente = "{$profile['name']} ({$profile['email']})";
+
+      if (empty($params['id']) || !is_numeric($params['id'])) {
+        throw new \Exception('ID do atendimento inválido.');
+      }
       $model = Atendimento::findOne($params['id']);
 
-      // $arrEtapas = json_decode($model['etapas'], true);
+      $arrEtapas = is_string($model->etapas) ? json_decode($model->etapas, true) : $model->etapas;
+
+      // Garante que $arrEtapas sempre seja um array
+      if (!is_array($arrEtapas)) {
+        $arrEtapas = [];
+      }
+
 
       $model->attributes = $params;
-      // array_push($arrEtapas, ['hora' => date('d-m-Y H:m:i'), 'descricao' => 'atendimento alterado de atendente para [atendente] por atendente {[nome do atendente]}']);
-      // $model->etapas = json_encode($arrEtapas);
+      array_push($arrEtapas, [
+        "hora" => date('d-m-Y H:i:s'),
+        "descricao" => "O atendente foi trocado por {$atendente}"
+      ]);
+      $model->etapas = json_encode($arrEtapas);
 
       $model->save();
 
@@ -458,19 +557,26 @@ class UpdateController extends Controller
     $transactionDb = \Yii::$app->db->beginTransaction();
 
     try {
+      $userToken = TokenAuthenticationHelper::token();
+      if (!$userToken || !isset($userToken['id'])) {
+        throw new \Exception('Token de autenticação inválido.');
+      }
+
+      if (empty($params['id']) || !is_numeric($params['id'])) {
+        throw new \Exception('ID do atendimento inválido.');
+      }
       $model = Atendente::findOne($params['id']);
       $profile = Profile::findOne(['user_id' => $params['id']]);
-
-      // $arrEtapas = json_decode($model['etapas']);
+      if (!$profile) {
+        throw new \Exception('Perfil do usuário não encontrado.');
+      }
       $model->attributes = $params;
       $profile->attributes = $params['profile'];
 
       if (isset($params['senha'])) {
-        $model->password_hash = \Yii::$app->getSecurity()->generatePasswordHash($params['senha']);
+        $model->password_hash = Yii::$app->getSecurity()->generatePasswordHash($params['senha']);
       }
-      // array_push($arrEtapas, ['hora' => date('d-m-Y H:m:i'), 'descricao' => 'atendimento alterado de atendente para [atendente] por atendente {[nome do atendente]}']);
-      // $model->etapas = json_encode($arrEtapas);
-
+      
       $model->save();
       $profile->save();
 
@@ -496,11 +602,26 @@ class UpdateController extends Controller
     $transactionDb = \Yii::$app->db->beginTransaction();
 
     try {
+      $userToken = TokenAuthenticationHelper::token();
+      if (!$userToken || !isset($userToken['id'])) {
+        throw new \Exception('Token de autenticação inválido.');
+      }
 
+      $profile = Profile::findOne(['user_id' => $userToken['id']]);
+      if (!$profile) {
+        throw new \Exception('Perfil do usuário não encontrado.');
+      }
+      $atendente = "{$profile['name']} ({$profile['email']})";
+
+      if (empty($params['id']) || !is_numeric($params['id'])) {
+        throw new \Exception('ID do atendimento inválido.');
+      }
       $model = Atendimento::findOne($params['id']);
+      
       if ($model['anexos'] == null) {
         $model->anexos = '[]';
       }
+      
       $arrAnexos = json_decode($model['anexos']);
       array_push($arrAnexos, [
         'nome' => $params['nome'],
@@ -509,6 +630,16 @@ class UpdateController extends Controller
         'fileId' => $params['fileId'],
       ]);
       $model->anexos = json_encode($arrAnexos);
+
+      $arrEtapas = json_decode($model->etapas, true);
+      if (!is_array($arrEtapas)) {
+        $arrEtapas = []; // Garante que sempre seja um array
+      }
+      array_push($arrEtapas, [
+        "hora" => date('d-m-Y H:i:s'),
+        "descricao" => "Anexo adicionado por {$atendente}"
+      ]);
+      $model->etapas = json_encode($arrEtapas);
 
       $model->save();
 

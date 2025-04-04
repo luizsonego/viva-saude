@@ -73,25 +73,36 @@ class CreateController extends Controller
     $params = Yii::$app->request->getBodyParams();
     $transaction = Yii::$app->db->beginTransaction();
 
+    $userToken = TokenAuthenticationHelper::token();
+    if (!$userToken || !isset($userToken['id'])) {
+      throw new \Exception('Token de autenticação inválido.');
+    }
+
+    $profile = Profile::findOne(['user_id' => $userToken['id']]);
+    if (!$profile) {
+      throw new \Exception('Perfil do usuário não encontrado.');
+    }
+    $atendente = "{$profile['name']} ({$profile['email']})";
+
     try {
       $arrEtapas = [];
       $outro = isset($params['nome_outro']) ? (string) $params['nome_outro'] : '';
-      $para = ($params['para_quem'] === 'titular') ? ',' : " para {$outro},";
+      $para = (isset($params['para_quem']) && $params['para_quem'] === 'titular') ? ',' : " para {$outro},";
+
 
       $modelMedicos = new Medicos();
       $medicoNome = '';
-
       // Verifica se o ID do médico foi enviado e busca o nome
       if (!empty($params['medico_atendimento'])) {
         $medico = $modelMedicos->find()
           ->select('nome')
-          ->where(['id' => $params['medico_atendimento']])
+          ->where(['id' => (int) $params['medico_atendimento']])
           ->one();
-        $medicoNome = $medico ? $medico->nome : '';
+        $medicoNome = $medico->nome ?? '';
       }
 
       // **Correção do erro: Garante que "onde_deseja_ser_atendido" seja string**
-      $ondeAtendido = isset($params['onde_deseja_ser_atendido']) ? (string) $params['onde_deseja_ser_atendido'] : 'o';
+      $ondeAtendido = !empty($params['onde_deseja_ser_atendido']) ? (string) $params['onde_deseja_ser_atendido'] : 'não informado';
 
       // Construção do título do atendimento
       if (!empty($params['o_que_deseja']) && !empty($ondeAtendido)) {
@@ -102,18 +113,24 @@ class CreateController extends Controller
 
       // Adiciona a etapa inicial do atendimento
       $arrEtapas[] = [
-        'hora' => date('d-m-Y H:i:s'),
-        'descricao' => 'Atendimento iniciado pelo auto-atendimento'
+        "hora" => date('d-m-Y H:i:s'),
+        "descricao" => "Atendimento iniciado por {$atendente}"
       ];
 
       // Determina o status do atendimento
-      $emEspera = !empty($params['em_espera']) ? 'FILA DE ESPERA' :
-        (!empty($params['aguardando_vaga']) ? 'AGUARDANDO VAGA' : 'ABERTO');
+      // $emEspera = !empty($params['em_espera']) ? 'FILA DE ESPERA' :
+      //   (!empty($params['aguardando_vaga']) ? 'AGUARDANDO VAGA' : 'ABERTO');
+      $status = 'ABERTO';
+      if (!empty($params['em_espera'])) {
+        $status = 'FILA DE ESPERA';
+      } elseif (!empty($params['aguardando_vaga'])) {
+        $status = 'AGUARDANDO VAGA';
+      }
 
       // Criação do modelo de atendimento
       $model = new Atendimento();
       $model->attributes = $params;
-      $model->status = $emEspera;
+      $model->status = $status;
       $model->atendimento_iniciado = date('Y-m-d H:i:s');
       $model->atendido_por = $params['atendido_por'] ?? 'AUTO-ATENDIMENTO';
       $model->titulo = $title;
@@ -125,11 +142,27 @@ class CreateController extends Controller
         : null;
       $model->etapas = json_encode($arrEtapas, JSON_UNESCAPED_UNICODE);
 
-
-
       // Salva o modelo no banco
       if (!$model->save()) {
-        throw new \Exception('Erro ao salvar atendimento: ' . json_encode($model->getErrors(), JSON_UNESCAPED_UNICODE));
+        Yii::error("Erro ao salvar atendimento: " . json_encode($model->getErrors(), JSON_UNESCAPED_UNICODE), 'atendimento');
+        throw new \Exception('Erro ao salvar atendimento: ');
+      }
+
+      // Inicializa o temporizador se o status for ABERTO
+      $temporizador = null;
+      if ($status === 'ABERTO') {
+        // Adiciona a etapa de status inicial
+        $arrEtapas[] = [
+          "hora" => date('d-m-Y H:i:s'),
+          "descricao" => "Status foi alterado para {$status}"
+        ];
+        
+        // Atualiza o modelo com as etapas atualizadas
+        $model->etapas = json_encode($arrEtapas, JSON_UNESCAPED_UNICODE);
+        $model->save();
+        
+        // Processa o temporizador
+        $temporizador = $this->processarTemporizador($model);
       }
 
       $transaction->commit();
@@ -137,80 +170,88 @@ class CreateController extends Controller
       return [
         'status' => StatusCode::STATUS_CREATED,
         'message' => 'Atendimento criado com sucesso!',
-        'data' => $model->attributes,
+        'data' => [
+          'atendimento' => $model->attributes,
+          'temporizador' => $temporizador
+        ],
       ];
 
     } catch (\Throwable $th) {
       $transaction->rollBack();
+      Yii::error("Erro ao processar atendimento: {$th->getMessage()}", 'atendimento');
       return [
         'status' => StatusCode::STATUS_ERROR,
-        'message' => "Erro ao processar atendimento: " . $th->getMessage(),
+        'message' => "Erro ao processar atendimento, tente novamente. ",
         'data' => [],
       ];
     }
   }
 
+  /**
+   * Processa o temporizador para um atendimento
+   * @param Atendimento $data O modelo de atendimento
+   * @return array|null Informações do temporizador ou null se não aplicável
+   */
+  private function processarTemporizador($data)
+  {
+    $statusTemporizadores = [
+      'ABERTO' => 30 * 60,
+      'EM ANALISE' => 60 * 60,
+      'AGUARDANDO PAGAMENTO' => 24 * 60 * 60,
+      'AUTORIZAÇÃO' => 3 * 60 * 60,
+      'PAGAMENTO EFETUADO' => 60 * 60,
+      'FILA DE ESPERA' => null,
+      'AGUARDANDO VAGA' => 48 * 60 * 60
+    ];
 
+    $statusAtual = strtoupper($data->status);
+    $ultimoStatusAlterado = $this->getUltimaAlteracaoStatus($data->etapas);
 
-  // public function actionAtendimento()
-  // {
-  //   $params = Yii::$app->request->getBodyParams();
+    if ($ultimoStatusAlterado && isset($statusTemporizadores[$statusAtual]) && $statusTemporizadores[$statusAtual] !== null) {
+      $tempoExpiracao = strtotime($ultimoStatusAlterado) + $statusTemporizadores[$statusAtual];
+      $tempoRestante = $tempoExpiracao - time();
+      
+      // Verificar se está em atraso
+      if ($tempoRestante <= 0) {
+        return [
+          'em_atraso' => true,
+          'tempo_atraso' => date('Y-m-d H:i:s', $tempoExpiracao)
+        ];
+      }
+      
+      return [
+        'tempo_restante' => max(0, $tempoRestante),
+        'expira_em' => date('Y-m-d H:i:s', $tempoExpiracao),
+        'em_atraso' => false
+      ];
+    }
+    
+    return null;
+  }
 
-  //   $transaction = Yii::$app->db->beginTransaction();
-  //   try {
+  /**
+   * Obtém a data/hora da última alteração de status
+   * @param array|string $etapas As etapas do atendimento
+   * @return string|null A data/hora da última alteração de status ou null
+   */
+  private function getUltimaAlteracaoStatus($etapas)
+  {
+    if (is_string($etapas)) {
+      $etapas = json_decode($etapas, true);
+    }
+    
+    if (!is_array($etapas)) {
+      return null;
+    }
 
-  //     $arrEtapas = [];
-  //     $outro = isset($params['nome_outro']);
-  //     $para = $params['para_quem'] === 'titular' ? ',' : " para {$outro},";
-
-  //     $modelMedicos = new Medicos();
-
-  //     if (isset($params['medico_atendimento'])) {
-  //       $medico = $modelMedicos->find()->select('nome')->where(['id' => $params['medico_atendimento']])->one();
-  //     }
-
-  //     $title = '';
-  //     if (isset($params['o_que_deseja']) || isset($params['onde_deseja_ser_atendido']) || isset($medico['nome'])) {
-  //       $title = "{$params['titular_plano']} solicita atendimento{$para} de {$params['o_que_deseja']}, em {$params['onde_deseja_ser_atendido']} pelo profissional: {$medico['nome']}";
-  //     } else {
-  //       $title = "{$params['titular_plano']} solicita atendimento{$para}";
-  //     }
-
-  //     array_push($arrEtapas, ['hora' => date('d-m-Y H:m:i'), 'descricao' => 'atendimento iniciado pelo auto-atendimento']);
-
-  //     $emEspera = !empty($params['em_espera']) ? 'FILA DE ESPERA' :
-  //       (!empty($params['aguardando_vaga']) ? 'AGUARDANDO VAGA' : 'ABERTO');
-
-  //     $model = new Atendimento();
-  //     $model->attributes = $params;
-  //     $model->status = $emEspera;
-  //     $model->atendido_por = isset($params['atendido_por']) ? $params['atendido_por'] : 'AUTO-ATENDIMENTO';
-  //     $model->titulo = $title;
-  //     $model->medico_atendimento = !isset($medico['nome']) ? '' : $medico['nome'];
-  //     $model->medico = !isset($params['medico_atendimento']) ? null : $params['medico_atendimento'];
-  //     $model->medico_atendimento_data = isset($params['medico_atendimento_data'])
-  //       ? date('Y-m-d H:i:s', strtotime($params['medico_atendimento_data']))
-  //       : '';
-  //     $model->etapas = json_encode($arrEtapas);
-
-  //     $model->save();
-
-  //     $transaction->commit();
-
-  //     $response['status'] = StatusCode::STATUS_CREATED;
-  //     $response['message'] = 'Data is created!';
-  //     $response['data'] = [];
-
-  //   } catch (\Throwable $th) {
-  //     $transaction->rollBack();
-  //     $response['status'] = StatusCode::STATUS_ERROR;
-  //     $response['message'] = "Error: {$th}";
-  //     $response['data'] = [];
-  //   }
-
-  //   return $response;
-
-  // }
+    $ultimoStatus = null;
+    foreach ($etapas as $etapa) {
+      if (isset($etapa['descricao']) && strpos(strtolower($etapa['descricao']), 'status foi alterado') !== false) {
+        $ultimoStatus = $etapa['hora'] ?? null;
+      }
+    }
+    return $ultimoStatus;
+  }
 
   /**
    * Grupo é os serviços que o usuário pode escolher para atendimento (ex: Cardio, dentista, etc)

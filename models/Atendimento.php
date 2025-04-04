@@ -56,11 +56,21 @@ class Atendimento extends ActiveRecord
           'o_que_deseja',
           'comentario',
           'observacoes',
+          'tempo_atraso',
+          'temporizador'
         ],
         'string'
       ],
       [['atendimento_valor'], 'number'],
-      [['etapas', 'em_espera', 'aguardando_vaga', 'anexos'], 'safe'],
+      [[
+        'etapas', 
+        'em_espera', 
+        'aguardando_vaga', 
+        'anexos', 
+        'temporizador', 
+        'em_atraso',
+        'prioridadeAtendimento'
+      ], 'safe'],
       [
         [
           'medico',
