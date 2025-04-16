@@ -57,56 +57,204 @@ class GetController extends Controller
 
     $model = new ResourceAtendimento();
 
-    if ($profile->cargo === "gerente") {
-      $data = $model->find()
-        ->all();
+    // Get pagination parameters from request
+    $page = Yii::$app->request->get('page', 1);
+    $pageSize = Yii::$app->request->get('pageSize', 20);
+    $status = Yii::$app->request->get('status', '');
+    $prioridade = Yii::$app->request->get('prioridade', '');
+    $medico = Yii::$app->request->get('medico', '');
+    $local = Yii::$app->request->get('local', '');
+    $atendente = Yii::$app->request->get('atendente', '');
+    $cliente = Yii::$app->request->get('cliente', '');
+    $dataInicio = Yii::$app->request->get('dataInicio', '');
+    $dataFim = Yii::$app->request->get('dataFim', '');
+    $procedimento = Yii::$app->request->get('procedimento', '');
+    $convenio = Yii::$app->request->get('convenio', '');
+    $especialidade = Yii::$app->request->get('especialidade', '');
+
+    // Log para depuração
+    // Yii::info("Parâmetros recebidos: status={$status}, prioridade={$prioridade}, medico={$medico}, local={$local}, atendente={$atendente}, cliente={$cliente}");
+
+    // Define roles that have full access to all cards
+    $adminRoles = ['gerente', 'supervisor', 'administrador'];
+
+    // Define statuses that are visible to all users
+    $publicStatuses = ['ABERTO', 'NOVO', 'AGUARDANDO VAGA', 'FILA DE ESPERA'];
+
+    // Base query with selected fields only
+    $query = $model->find();
+
+    // Apply role-based filtering
+    if (in_array($profile->cargo, $adminRoles)) {
+      // Admin roles can see all cards
+    } else if ($profile->cargo === 'atendente') {
+      // Atendentes can only see cards assigned to them or with public statuses
+      $query->andWhere([
+        'or',
+        ['atendente' => $user->id],
+        ['in', 'status', $publicStatuses]
+      ]);
     } else {
-      $data = $model->find()
-        ->where([
-          'and',
-          ['in', 'status', ['ABERTO', 'NOVO', 'AGUARDANDO VAGA', 'FILA DE ESPERA', 'EM ANALISE', 'PAGAMENTO', 'AGUARDANDO AUTORIZACAO', 'CONCLUIDO', 'PAGAMENTO EFETUADO']]
-        ])
-        ->all();
+      // Other roles can see cards with specific statuses
+      $query->andWhere([
+        'in',
+        'status',
+        [
+          'ABERTO',
+          'NOVO',
+          'AGUARDANDO VAGA',
+          'FILA DE ESPERA',
+          'EM ANALISE',
+          'PAGAMENTO',
+          'AGUARDANDO AUTORIZACAO',
+          'CONCLUIDO',
+          'PAGAMENTO EFETUADO',
+          'AGUARDANDO EFETUADO'
+        ]
+      ]);
     }
 
+    // Apply filters from request
+    if (!empty($status) && $status !== 'TODOS' && $status !== 'ABERTOS') {
+      $query->andWhere(['status' => $status]);
+      Yii::info("Filtro de status aplicado: {$status}");
+    }
 
-    foreach ($data as &$item) {
-      if (!empty($item->anexos)) {
-        $item->anexos = json_decode($item->anexos) ?: $item->anexos;
+    if (!empty($prioridade)) {
+      // Verificar se é um ID ou um nome
+      if (is_numeric($prioridade)) {
+        $query->andWhere(['prioridade' => $prioridade]);
+      } else {
+        $query->andWhere(['like', 'prioridade', $prioridade]);
+      }
+      Yii::info("Filtro de prioridade aplicado: {$prioridade}");
+    }
+
+    if (!empty($medico)) {
+      // Verificar se é um ID ou um nome
+      if (is_numeric($medico)) {
+        $query->andWhere([
+          'or',
+          ['medico_atendimento' => $medico],
+          ['id_medico' => $medico]
+        ]);
+      } else {
+        $query->andWhere([
+          'or',
+          ['like', 'medico_atendimento', $medico],
+          ['like', 'nome_medico', $medico]
+        ]);
+      }
+      Yii::info("Filtro de médico aplicado: {$medico}");
+    }
+
+    if (!empty($local)) {
+      $query->andWhere(['like', 'onde_deseja_ser_atendido', $local]);
+      Yii::info("Filtro de local aplicado: {$local}");
+    }
+
+    if (!empty($atendente)) {
+      // Verificar se é um ID ou um nome
+      if (is_numeric($atendente)) {
+        $query->andWhere(['atendente' => $atendente]);
+      } else {
+        $query->andWhere(['like', 'atendente', $atendente]);
+      }
+      Yii::info("Filtro de atendente aplicado: {$atendente}");
+    }
+
+    if (!empty($cliente)) {
+      try {
+        // Sanitiza o input do cliente
+        $cliente = trim($cliente);
+
+        // Busca por nome, CPF ou qualquer parte do texto
+        $query->andWhere([
+          'or',
+          ['like', 'titular_plano', $cliente],
+          ['like', 'cpf_titular', $cliente],
+          ['like', 'nome_outro', $cliente],
+          ['like', 'cpf_outro', $cliente],
+          ['like', 'o_que_deseja', $cliente]
+        ]);
+
+        // Log para depuração
+        Yii::info("Busca por cliente: {$cliente}");
+      } catch (\Exception $e) {
+        Yii::error("Erro na busca por cliente: " . $e->getMessage());
+        // Não interrompe a execução, apenas loga o erro
       }
     }
 
-    $processedData = [];
-    $temporizador = [];
+    // Filtro por data de atendimento
+    if (!empty($dataInicio)) {
+      $query->andWhere(['>=', 'medico_atendimento_data', $dataInicio]);
+      Yii::info("Filtro de data início aplicado: {$dataInicio}");
+    }
 
+    if (!empty($dataFim)) {
+      $query->andWhere(['<=', 'medico_atendimento_data', $dataFim]);
+      Yii::info("Filtro de data fim aplicado: {$dataFim}");
+    }
+
+    // Filtro por procedimento
+    if (!empty($procedimento)) {
+      $query->andWhere(['like', 'o_que_deseja', $procedimento]);
+      Yii::info("Filtro de procedimento aplicado: {$procedimento}");
+    }
+
+    // Filtro por convênio
+    if (!empty($convenio)) {
+      $query->andWhere(['like', 'convenio', $convenio]);
+      Yii::info("Filtro de convênio aplicado: {$convenio}");
+    }
+
+    // Filtro por especialidade
+    if (!empty($especialidade)) {
+      $query->andWhere(['like', 'especialidade', $especialidade]);
+      Yii::info("Filtro de especialidade aplicado: {$especialidade}");
+    }
+
+    // Get total count for pagination
+    $totalCount = $query->count();
+
+    // Log para depuração
+    Yii::info("Total de resultados: {$totalCount}");
+
+    // Apply pagination
+    $offset = ($page - 1) * $pageSize;
+    $query->offset($offset)->limit($pageSize);
+
+    // Execute query
+    $data = $query->all();
+
+    // Process data for response
     foreach ($data as &$item) {
+      // Ensure etapas is properly decoded from JSON if needed
       if (!empty($item->etapas)) {
         if (is_string($item->etapas)) {
           $item->etapas = json_decode($item->etapas, true) ?: $item->etapas;
         }
+      } else {
+        $item->etapas = [];
       }
 
-      // Converter 'etapas' para array, se necessário
-      if (!empty($item->etapas)) {
-        if (is_string($item->etapas)) {
-          $item->etapas = json_decode($item->etapas, true) ?: $item->etapas;
-        }
-      }
-
-      // Converter 'medicoProfile->etiquetas' para array, se necessário
-      if (!empty($item->medicoProfile->etiquetas)) {
-        if (is_string($item->medicoProfile->etiquetas)) {
-          $item->medicoProfile->etiquetas = json_decode($item->medicoProfile->etiquetas, true) ?: explode(',', str_replace(['[', ']', '"'], '', $item->medicoProfile->etiquetas));
-        }
-      }
-
+      // Add temporizador calculation
       $item->temporizador = $this->processarTemporizador($item);
     }
 
     return [
       'status' => StatusCode::STATUS_OK,
       'message' => "",
-      'data' => $data
+      'data' => [
+        'items' => $data,
+        'pagination' => [
+          'total' => $totalCount,
+          'page' => (int)$page,
+          'pageSize' => (int)$pageSize,
+          'totalPages' => ceil($totalCount / $pageSize)
+        ]
+      ]
     ];
   }
 
@@ -381,28 +529,56 @@ class GetController extends Controller
     $statusAtual = strtoupper($data->status);
     $ultimoStatusAlterado = $this->getUltimaAlteracaoStatus($data->etapas);
 
+    // Debug logging
+    Yii::info("Processando temporizador para atendimento ID: {$data->id}, Status: {$statusAtual}, Último status alterado: " . ($ultimoStatusAlterado ? $ultimoStatusAlterado : 'null'));
+    Yii::info("Etapas: " . json_encode($data->etapas));
+
     if ($ultimoStatusAlterado && isset($statusTemporizadores[$statusAtual]) && $statusTemporizadores[$statusAtual] !== null) {
       $tempoExpiracao = strtotime($ultimoStatusAlterado) + $statusTemporizadores[$statusAtual];
       $tempoRestante = $tempoExpiracao - time();
-      // if ($tempoRestante <= 0) {
-      // $data->em_atraso = true;
-      // $data->tempo_atraso = date('Y-m-d H:i:s', $tempoExpiracao);
-      // if (!$data->save()) {
-      //   error_log('Erro ao salvar o status atualizado.');
-      // }
-      // return true;
-      // }
+
+      // Debug logging
+      Yii::info("Tempo expiração: " . date('Y-m-d H:i:s', $tempoExpiracao) . ", Tempo restante: {$tempoRestante} segundos");
+
+      // Verificar se está em atraso
+      if ($tempoRestante <= 0) {
+        // $data->em_atraso = true;
+        // $data->tempo_atraso = date('Y-m-d H:i:s', $tempoExpiracao);
+        // if (!$data->save()) {
+        //   error_log('Erro ao salvar o status atualizado.');
+        // }
+        return [
+          'em_atraso' => true,
+          'tempo_atraso' => date('Y-m-d H:i:s', $tempoExpiracao)
+        ];
+      }
+
       return [
         'tempo_restante' => max(0, $tempoRestante),
-        'expira_em' => date('Y-m-d H:i:s', $tempoExpiracao)
+        'expira_em' => date('Y-m-d H:i:s', $tempoExpiracao),
+        'em_atraso' => false
       ];
     }
+
+    // Debug logging for why we're returning null
+    if (!$ultimoStatusAlterado) {
+      Yii::info("Retornando null porque último status alterado é null");
+    } elseif (!isset($statusTemporizadores[$statusAtual])) {
+      Yii::info("Retornando null porque status atual '{$statusAtual}' não está nos temporizadores");
+    } elseif ($statusTemporizadores[$statusAtual] === null) {
+      Yii::info("Retornando null porque temporizador para status '{$statusAtual}' é null");
+    }
+
     return null;
   }
 
   private function getUltimaAlteracaoStatus($etapas)
   {
+    // Debug logging
+    Yii::info("getUltimaAlteracaoStatus recebeu: " . json_encode($etapas));
+
     if (!is_array($etapas)) {
+      Yii::info("getUltimaAlteracaoStatus: etapas não é um array");
       return null;
     }
 
@@ -410,8 +586,11 @@ class GetController extends Controller
     foreach ($etapas as $etapa) {
       if (isset($etapa['descricao']) && strpos(strtolower($etapa['descricao']), 'status foi alterado') !== false) {
         $ultimoStatus = $etapa['hora'] ?? null;
+        Yii::info("getUltimaAlteracaoStatus: encontrou status alterado em: " . ($ultimoStatus ? $ultimoStatus : 'null'));
       }
     }
+
+    Yii::info("getUltimaAlteracaoStatus: retornando: " . ($ultimoStatus ? $ultimoStatus : 'null'));
     return $ultimoStatus;
   }
 }
