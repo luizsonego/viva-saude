@@ -124,3 +124,4 @@ Possíveis códigos de status:
 3. Os dados são ordenados alfabeticamente por nome quando aplicável
 4. A API suporta CORS para requisições cross-origin
 5. Os endpoints são case-sensitive para os parâmetros de busca
+ 
