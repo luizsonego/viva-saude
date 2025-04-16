@@ -19,7 +19,7 @@ Retorna uma lista de médicos que realizam um determinado procedimento.
 
 **Exemplo de Requisição:**
 ```bash
-curl -X GET "https://api.vivasaude.com/v1/api/medicos-procedimento?search=Academia" \
+curl -X GET "https://clinica.rtxoperacoes.com.br/web/v1/api/medicos-procedimento?search=Academia" \
 -H "Authorization: Bearer seu-token-aqui"
 ```
 
@@ -47,7 +47,7 @@ Retorna uma lista de todos os procedimentos disponíveis no sistema.
 
 **Exemplo de Requisição:**
 ```bash
-curl -X GET "https://api.vivasaude.com/v1/api/procedimentos" \
+curl -X GET "https://clinica.rtxoperacoes.com.br/web/v1/api/procedimentos" \
 -H "Authorization: Bearer seu-token-aqui"
 ```
 
@@ -82,7 +82,7 @@ Retorna os locais de atendimento de um médico específico.
 
 **Exemplo de Requisição:**
 ```bash
-curl -X GET "https://api.vivasaude.com/v1/api/medicos-local?medico=Ariane" \
+curl -X GET "https://clinica.rtxoperacoes.com.br/web/v1/api/medicos-local?medico=Ariane" \
 -H "Authorization: Bearer seu-token-aqui"
 ```
 
