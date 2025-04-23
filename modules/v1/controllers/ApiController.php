@@ -47,19 +47,24 @@ class ApiController extends Controller
         ->orderBy(['nome' => SORT_ASC])
         ->all();
 
-      foreach ($data as &$medico) {
+      $medicos = new \stdClass();
+
+      foreach ($data as $medico) {
         if (!empty($medico->local)) {
           self::is_serialized($medico->local) ? $medico->local = unserialize($medico->local) : [$medico->local];
         }
+
+        $medicoId = $medico->id;
+        $medicos->$medicoId = $medico;
       }
 
       $response['status'] = StatusCode::STATUS_OK;
       $response['message'] = "";
-      $response['data'] = $data;
+      $response['data'] = $medicos;
     } catch (\Throwable $th) {
       $response['status'] = StatusCode::STATUS_ERROR;
       $response['message'] = $th->getMessage();
-      $response['data'] = [];
+      $response['data'] = new \stdClass();
     }
 
     return $response;
@@ -84,7 +89,7 @@ class ApiController extends Controller
         ->orderBy(['nome' => SORT_ASC])
         ->all();
 
-      $procedimentos = [];
+      $procedimentos = new \stdClass();
       $processedProcedimentos = [];
 
       foreach ($data as $medico) {
@@ -94,7 +99,8 @@ class ApiController extends Controller
           if (is_array($procedimentoData)) {
             foreach ($procedimentoData as $item) {
               if (isset($item['procedimento']) && !isset($processedProcedimentos[$item['procedimento']])) {
-                $procedimentos[] = [
+                $procedimentoId = $item['id'];
+                $procedimentos->$procedimentoId = (object) [
                   'id' => $item['id'],
                   'procedimento' => $item['procedimento'],
                   'valor' => $item['valor'] ?? ''
@@ -106,10 +112,8 @@ class ApiController extends Controller
         }
       }
 
-      // Ordenar por nome do procedimento
-      usort($procedimentos, function ($a, $b) {
-        return strcmp($a['procedimento'], $b['procedimento']);
-      });
+      // Ordenar por nome do procedimento (não é possível ordenar objetos diretamente)
+      // A ordenação será feita no lado do cliente
 
       $response['status'] = StatusCode::STATUS_OK;
       $response['message'] = "";
@@ -117,9 +121,8 @@ class ApiController extends Controller
     } catch (\Throwable $th) {
       $response['status'] = StatusCode::STATUS_ERROR;
       $response['message'] = $th->getMessage();
-      $response['data'] = [];
+      $response['data'] = new \stdClass();
     }
-
 
     return $response;
   }
@@ -145,19 +148,24 @@ class ApiController extends Controller
         ->orderBy(['nome' => SORT_ASC])
         ->all();
 
-      foreach ($data as &$medico) {
+      $medicos = new \stdClass();
+
+      foreach ($data as $medico) {
         if (!empty($medico->local)) {
           self::is_serialized($medico->local) ? $medico->local = unserialize($medico->local) : [$medico->local];
         }
+
+        $medicoId = $medico->id;
+        $medicos->$medicoId = $medico;
       }
 
       $response['status'] = StatusCode::STATUS_OK;
       $response['message'] = "";
-      $response['data'] = $data;
+      $response['data'] = $medicos;
     } catch (\Throwable $th) {
       $response['status'] = StatusCode::STATUS_ERROR;
       $response['message'] = $th->getMessage();
-      $response['data'] = [];
+      $response['data'] = new \stdClass();
     }
 
     return $response;

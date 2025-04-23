@@ -1,4 +1,5 @@
 <?php
+
 namespace app\models;
 
 use app\behaviors\GenerateUuid;
@@ -18,9 +19,9 @@ class Grupo extends ActiveRecord
       'timestamp' => [
         'class' => TimestampBehavior::className(),
       ],
-      'generateUUid' => [
-        'class' => GenerateUuid::className(),
-      ],
+      // 'generateUUid' => [
+      //   'class' => GenerateUuid::className(),
+      // ],
     ];
   }
 
