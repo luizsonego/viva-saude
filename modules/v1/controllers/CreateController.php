@@ -564,5 +564,96 @@ class CreateController extends Controller
     return $response;
   }
 
+  public function actionAgendarConsulta()
+    {
+      $dados = Yii::$app->request->getBodyParams();
+        // Validações básicas
+        if (!isset(
+          $dados['medico'], 
+          $dados['onde_deseja_ser_atendido'], 
+          $dados['titular_plano'], 
+          $dados['medico_atendimento_data'], 
+          $dados['o_que_deseja']
+        )) {
+            return ['erro' => 'Dados incompletos para agendamento'];
+        }
+        
+        // Verifica disponibilidade de vagas
+        $data = date('Y-m-d', strtotime($dados['medico_atendimento_data']));
+
+        $actionVagas = new GetController('vagasDisponiveisMedico', $this->module);
+        $vagas = $actionVagas->actionVagasDisponiveisMedico($dados['medico'], $data);
+        // $vagas = $this->getVagasDisponiveis($dados['medico'], $data);
+        // return $vagas['locais'];
+        // Encontra o local específico
+        $local_encontrado = null;
+        foreach ($vagas['locais'] as $local) {
+            if ($local['local_nome'] == $dados['onde_deseja_ser_atendido']) {
+                $local_encontrado = $local;
+                break;
+            }
+        }
+        
+        if (!$local_encontrado) {
+            return ['erro' => 'Local não encontrado para este médico'];
+        }
+        
+        // Verifica se há vagas disponíveis
+        $tipo = $dados['o_que_deseja'];
+        if ($tipo == 'consulta' && $local_encontrado['vagas_consulta']['disponiveis'] <= 0) {
+            return ['erro' => 'Não há vagas disponíveis para consulta neste local e data'];
+        }
+        
+        if ($tipo == 'retorno' && $local_encontrado['vagas_retorno']['disponiveis'] <= 0) {
+            return ['erro' => 'Não há vagas disponíveis para retorno neste local e data'];
+        }
+        
+        // Identifica o local_nome pelo local_id
+        $local_nome = $local_encontrado['local_nome'];
+        
+        // Cria um novo modelo de Atendimento
+        $atendimento = new Atendimento();
+        
+        // Atribui os valores
+        $atendimento->titular_plano = $dados['titular_plano'];
+        $atendimento->cpf_titular = $dados['cpf'] ?? null;
+        $atendimento->whatsapp_titular = $dados['whatsapp'] ?? null;
+        $atendimento->para_quem = $dados['para_quem'] ?? 'titular';
+        $atendimento->nome_outro = $dados['nome_outro'] ?? null;
+        $atendimento->cpf_outro = $dados['cpf_outro'] ?? null;
+        $atendimento->o_que_deseja = $dados['o_que_deseja']; // 'consulta' ou 'retorno'
+        $atendimento->medico_atendimento = (string) $dados['medico'];
+        $atendimento->onde_deseja_ser_atendido = $local_nome;
+        $atendimento->medico_atendimento_local = $local_nome;
+        $atendimento->medico_atendimento_data = $dados['medico_atendimento_data'];
+        $atendimento->medico_atendimento_status = 'agendado';
+        $atendimento->status = 'agendado';
+        $atendimento->observacoes = $dados['observacoes'] ?? null;
+        $atendimento->cliente = $dados['titular_plano'];
+        $atendimento->cliente_telefone = $dados['whatsapp'] ?? null;
+        $atendimento->aguardando_vaga = false;
+        $atendimento->created_at = date('Y-m-d H:i:s');
+        $atendimento->updated_at = date('Y-m-d H:i:s');
+        
+        // Salva o modelo
+        if (!$atendimento->save()) {
+            return [
+                'erro' => 'Erro ao registrar agendamento', 
+                'details' => $atendimento->getErrors()
+            ];
+        }
+        
+        // Retorna os dados do agendamento
+        return [
+            'sucesso' => true,
+            'mensagem' => 'Agendamento realizado com sucesso',
+            'agendamento_id' => $atendimento->id,
+            'vagas_restantes' => $tipo == 'consulta' 
+                ? $local_encontrado['vagas_consulta']['disponiveis'] - 1 
+                : $local_encontrado['vagas_retorno']['disponiveis'] - 1
+        ];
+    }
+
+
 
 }

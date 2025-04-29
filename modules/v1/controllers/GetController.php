@@ -18,8 +18,10 @@ use app\modules\v1\resource\Atendente;
 use app\modules\v1\resource\Atendimento as ResourceAtendimento;
 use app\modules\v1\resource\Grupo;
 use Yii;
+use yii\db\Expression;
 use yii\filters\Cors;
 use yii\filters\VerbFilter;
+use yii\helpers\Json;
 use yii\rest\Controller;
 
 class GetController extends Controller
@@ -514,6 +516,227 @@ class GetController extends Controller
     return $result !== false || $data === 'b:0;';
   }
 
+  public function actionVagasDisponiveisMedico($medico_id, $data = null)
+  {
+    if (!$data) {
+      $data = date('Y-m-d');
+    }
+  
+
+    $medico = Medicos::findOne($medico_id);
+
+    if (!$medico) {
+      return ['erro' => 'Médico não encontrado'];
+  }
+
+     $locais = self::is_serialized($medico->local) ? $medico->local = unserialize($medico->local) : [$medico->local];
+        $resultado = [];
+
+        foreach ($locais as $local) {
+          // Conta quantos agendamentos já foram feitos para este médico/local nesta data
+          $consultas_agendadas = Atendimento::find()
+              ->where([
+                  'medico_atendimento' => $medico_id,
+                  'medico_atendimento_local' => $local['local'],
+                  'medico_atendimento_status' => 'agendado',
+                  'o_que_deseja' => 'consulta'
+              ])
+              ->andWhere(['>=', new Expression('DATE(medico_atendimento_data)'), $data])
+              ->andWhere(['<', new Expression('DATE(medico_atendimento_data)'), date('Y-m-d', strtotime($data . ' +1 day'))])
+              ->count();
+              
+          $retornos_agendados = Atendimento::find()
+              ->where([
+                  'medico_atendimento' => $medico_id,
+                  'medico_atendimento_local' => $local['local'],
+                  'medico_atendimento_status' => 'agendado',
+                  'o_que_deseja' => 'retorno'
+              ])
+              ->andWhere(['>=', new Expression('DATE(medico_atendimento_data)'), $data])
+              ->andWhere(['<', new Expression('DATE(medico_atendimento_data)'), date('Y-m-d', strtotime($data . ' +1 day'))])
+              ->count();
+          
+          // Calcula vagas disponíveis
+          $consultas_disponiveis = intval($local['consulta']) - intval($consultas_agendadas);
+          $retornos_disponiveis = intval($local['retorno']) - intval($retornos_agendados);
+          
+          $resultado[] = [
+              'local_id' => $local['id'],
+              'local_nome' => $local['local'],
+              'vagas_consulta' => [
+                  'total' => intval($local['consulta']),
+                  'agendadas' => intval($consultas_agendadas),
+                  'disponiveis' => $consultas_disponiveis
+              ],
+              'vagas_retorno' => [
+                  'total' => intval($local['retorno']),
+                  'agendadas' => intval($retornos_agendados),
+                  'disponiveis' => $retornos_disponiveis
+              ]
+          ];
+      }
+      
+    return [
+            'medico' => [
+                'id' => $medico->id,
+                'nome' => $medico->nome,
+                'especialidade' => $medico->especialidade
+            ],
+            'data' => $data,
+            'locais' => $resultado
+        ];
+  }
+
+  public function actionVagasDisponiveisMedicos($data = null)
+  {
+    if (!$data) {
+      $data = date('Y-m-d');
+    }
+
+    // Busca todos os médicos ativos
+    $medicos = Medicos::find()->all();
+    $resultado_geral = [];
+
+    foreach ($medicos as $medico) {
+      // Corrige o tratamento do campo local
+      $locais = [];
+      if (!empty($medico->local)) {
+        if (self::is_serialized($medico->local)) {
+          $locais = unserialize($medico->local);
+        } else {
+          // Se não for serializado, cria um array com um único local
+          $locais = [['local' => $medico->local, 'id' => 1, 'consulta' => 0, 'retorno' => 0]];
+        }
+      }
+
+      $resultado_medico = [];
+
+      foreach ($locais as $local) {
+        // Verifica se o local tem a estrutura esperada
+        if (!isset($local['local'])) {
+          continue;
+        }
+
+        // Conta quantos agendamentos já foram feitos para este médico/local nesta data
+        $consultas_agendadas = Atendimento::find()
+          ->where([
+            'medico' => $medico->id,
+            'onde_deseja_ser_atendido' => $local['local'],
+            // 'medico_atendimento_status' => 'agendado',
+          ])
+          ->andWhere(['like', 'o_que_deseja', 'consulta'])
+          ->andWhere(['>=', new Expression('DATE(medico_atendimento_data)'), $data])
+          ->andWhere(['<', new Expression('DATE(medico_atendimento_data)'), date('Y-m-d', strtotime($data . ' +1 day'))])
+          ->count();
+          
+        $retornos_agendados = Atendimento::find()
+          ->where([
+            'medico' => $medico->id,
+            'onde_deseja_ser_atendido' => $local['local'],
+            // 'medico_atendimento_status' => 'agendado',
+            'o_que_deseja' => 'Retorno'
+          ])
+          ->andWhere(['>=', new Expression('DATE(medico_atendimento_data)'), $data])
+          ->andWhere(['<', new Expression('DATE(medico_atendimento_data)'), date('Y-m-d', strtotime($data . ' +1 day'))])
+          ->count();
+
+        // Conta atendimentos não concluídos ou inativos
+        $consultas_nao_concluidas = Atendimento::find()
+          ->where([
+            'medico' => $medico->id,
+            'onde_deseja_ser_atendido' => $local['local'],
+          ])
+          ->andWhere(['like', 'o_que_deseja', 'consulta'])
+          ->andWhere(['>=', new Expression('DATE(medico_atendimento_data)'), $data])
+          ->andWhere(['<', new Expression('DATE(medico_atendimento_data)'), date('Y-m-d', strtotime($data . ' +1 day'))])
+          ->andWhere(['not in', 'status', ['CONCLUIDO', 'INATIVIDADE']])
+          ->count();
+
+        $retornos_nao_concluidos = Atendimento::find()
+          ->where([
+            'medico' => $medico->id,
+            'onde_deseja_ser_atendido' => $local['local'],
+            'o_que_deseja' => 'Retorno'
+          ])
+          ->andWhere(['>=', new Expression('DATE(medico_atendimento_data)'), $data])
+          ->andWhere(['<', new Expression('DATE(medico_atendimento_data)'), date('Y-m-d', strtotime($data . ' +1 day'))])
+          ->andWhere(['not in', 'status', ['CONCLUIDO', 'INATIVIDADE']])
+          ->count();
+        
+        // Conta quantos procedimentos já foram agendados para este médico/local nesta data
+        $procedimentos_agendados = Atendimento::find()
+          ->where([
+            'medico' => $medico->id,
+            'onde_deseja_ser_atendido' => $local['local']
+          ])
+          ->andWhere(['not', ['like', 'o_que_deseja', 'consulta']])
+          ->andWhere(['!=', 'o_que_deseja', 'Retorno'])
+          ->andWhere(['>=', new Expression('DATE(medico_atendimento_data)'), $data])
+          ->andWhere(['<', new Expression('DATE(medico_atendimento_data)'), date('Y-m-d', strtotime($data . ' +1 day'))])
+          ->count();
+
+        // Conta procedimentos não concluídos ou inativos
+        $procedimentos_nao_concluidos = Atendimento::find()
+          ->where([
+            'medico' => $medico->id,
+            'onde_deseja_ser_atendido' => $local['local']
+          ])
+          ->andWhere(['not', ['like', 'o_que_deseja', 'consulta']])
+          ->andWhere(['!=', 'o_que_deseja', 'Retorno'])
+          ->andWhere(['>=', new Expression('DATE(medico_atendimento_data)'), $data])
+          ->andWhere(['<', new Expression('DATE(medico_atendimento_data)'), date('Y-m-d', strtotime($data . ' +1 day'))])
+          ->andWhere(['not in', 'status', ['CONCLUIDO', 'INATIVIDADE']])
+          ->count();
+        
+        // Adiciona os não concluídos aos agendados
+        $consultas_agendadas += $consultas_nao_concluidas;
+        $retornos_agendados += $retornos_nao_concluidos;
+        $procedimentos_agendados += $procedimentos_nao_concluidos;
+        
+        // Calcula vagas disponíveis
+        $consultas_disponiveis = intval($local['consulta'] ?? 0) - intval($consultas_agendadas);
+        $retornos_disponiveis = intval($local['retorno'] ?? 0) - intval($retornos_agendados);
+        $procedimentos_disponiveis = intval($local['procedimento'] ?? 0) - intval($procedimentos_agendados);
+        
+        $resultado_medico[] = [
+          'local_id' => $local['id'] ?? 1,
+          'local_nome' => $local['local'],
+          'vagas_consulta' => [
+            'total' => intval($local['consulta'] ?? 0),
+            'agendadas' => intval($consultas_agendadas),
+            'disponiveis' => $consultas_disponiveis
+          ],
+          'vagas_retorno' => [
+            'total' => intval($local['retorno'] ?? 0),
+            'agendadas' => intval($retornos_agendados),
+            'disponiveis' => $retornos_disponiveis
+          ],
+          'vagas_procedimento' => [
+            'total' => intval($local['procedimento'] ?? 0),
+            'agendadas' => intval($procedimentos_agendados),
+            'disponiveis' => $procedimentos_disponiveis
+          ]
+        ];
+      }
+
+      // Adiciona informações do médico ao resultado
+      $resultado_geral[] = [
+        'medico' => [
+          'id' => $medico->id,
+          'nome' => $medico->nome,
+          'especialidade' => $medico->especialidade
+        ],
+        'locais' => $resultado_medico
+      ];
+    }
+    
+    return [
+      'data' => $data,
+      'medicos' => $resultado_geral
+    ];
+  }
+
+  
   private function processarTemporizador(&$data)
   {
     $statusTemporizadores = [

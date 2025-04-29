@@ -188,18 +188,18 @@ class SiteController extends Controller
       $params = Yii::$app->request->post();
 
       if (empty($params['username']) || empty($params['password'])) {
-        throw new \yii\web\HttpException(400, 'Need username and password.');
+        throw new \yii\web\HttpException(400, 'Need username and password.', 400);
       }
 
       $username = $params['username'];
       $user = User::findByUsername($username);
 
       if (!$user) {
-        throw new \yii\web\HttpException(400, 'Verifique os dados de acesso.');
+        throw new \yii\web\HttpException(400, 'Verifique os dados de acesso.', 400);
       }
 
       if (!$user->validatePassword($params['password'])) {
-        throw new \yii\web\HttpException(400, 'Verifique os dados de acesso.');
+        throw new \yii\web\HttpException(400, 'Verifique os dados de acesso.', 400);
       }
 
       if (isset($params['consumer'])) {
@@ -232,7 +232,7 @@ class SiteController extends Controller
       $response['status'] = StatusCode::STATUS_BAD_REQUEST;
       $response['message'] = $th->getMessage();
       $response['data'] = [];
-      //throw $th;
+      // throw $th;
     }
 
     return $response;
