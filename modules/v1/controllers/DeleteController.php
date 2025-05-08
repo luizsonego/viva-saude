@@ -1,6 +1,7 @@
 <?php
 namespace app\modules\v1\controllers;
 
+use app\models\Etiqueta;
 use app\models\StatusCode;
 use yii\db\Query;
 use yii\filters\Cors;
@@ -68,7 +69,7 @@ class DeleteController extends Controller
                 ->execute();
 
             $response['status'] = StatusCode::STATUS_CREATED;
-            $response['message'] = 'Data is deleted!';
+            $response['message'] = 'Médico deletado com sucesso!';
             $response['data'] = [];
 
         } catch (\Throwable $th) {
@@ -84,12 +85,20 @@ class DeleteController extends Controller
         try {
 
             (new Query)
-                ->createCommand()
-                ->delete('grupo', ['id' => $id])
-                ->execute();
+            ->createCommand()
+            ->delete('grupo', ['id' => $id])
+            ->execute();
+
+            $etiquetas = Etiqueta::findAll(['grupo' => $id]);
+            foreach ($etiquetas as $etiqueta) {
+                (new Query)
+                    ->createCommand()
+                    ->delete('etiqueta', ['id' => $etiqueta->id])
+                    ->execute();
+            }
 
             $response['status'] = StatusCode::STATUS_CREATED;
-            $response['message'] = 'Data is deleted!';
+            $response['message'] = 'Grupo deletado com sucesso!';
             $response['data'] = [];
 
         } catch (\Throwable $th) {
@@ -110,7 +119,7 @@ class DeleteController extends Controller
                 ->execute();
 
             $response['status'] = StatusCode::STATUS_CREATED;
-            $response['message'] = 'Data is deleted!';
+            $response['message'] = 'Etiqueta deletada com sucesso!';
             $response['data'] = [];
 
         } catch (\Throwable $th) {
