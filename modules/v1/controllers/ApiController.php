@@ -21,6 +21,7 @@ class ApiController extends Controller
         'class' => VerbFilter::className(),
         'actions' => [
           'create' => ['POST', 'PUT', 'GET'],
+          'refresh-token' => ['POST'],
         ],
       ],
     ];
@@ -171,6 +172,42 @@ class ApiController extends Controller
     return $response;
   }
 
+  /**
+   * POST v1/api/refresh-token
+   * Endpoint para renovar o token de acesso.
+   * @return array
+   */
+  public function actionRefreshToken()
+  {
+    try {
+      $authHeader = \Yii::$app->request->headers->get('Authorization') ?? '';
+      if (!preg_match('/^Bearer\s+(.+)$/', $authHeader, $matches)) {
+        throw new \Exception('Token não informado.', StatusCode::STATUS_UNAUTHORIZED);
+      }
+      $token = $matches[1];
+      // Buscar usuário pelo auth_key
+      $user = \app\models\User::find()->where(['auth_key' => $token])->one();
+      if (!$user) {
+        throw new \Exception('Token inválido.', StatusCode::STATUS_UNAUTHORIZED);
+      }
+      // Atualizar created_at e updated_at para o tempo atual
+      $user->created_at = time();
+      $user->updated_at = time();
+      $user->save(false);
+      $response['status'] = StatusCode::STATUS_OK;
+      $response['message'] = 'Token atualizado com sucesso.';
+      $response['data'] = [
+        'token' => $user->auth_key,
+        'created_at' => $user->created_at,
+        'updated_at' => $user->updated_at,
+      ];
+    } catch (\Throwable $th) {
+      $response['status'] = StatusCode::STATUS_ERROR;
+      $response['message'] = $th->getMessage();
+      $response['data'] = new \stdClass();
+    }
+    return $response;
+  }
 
   function is_serialized($data)
   {

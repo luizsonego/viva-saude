@@ -2,6 +2,7 @@
 
 namespace app\models;
 
+use Yii;
 use yii\behaviors\TimestampBehavior;
 use yii\db\ActiveRecord;
 
@@ -52,7 +53,7 @@ class AccessToken extends ActiveRecord
      */
     public static function generateAuthKey($user)
     {
-        // $this->auth_key = Yii::$app->security->generateRandomString();
+        $user->auth_key = Yii::$app->security->generateRandomString();
         $accessToken = new AccessToken();
         $accessToken->user_id = $user->id;
         $accessToken->consumer = $user->consumer ?? $accessToken->defaultConsumer;
@@ -60,7 +61,7 @@ class AccessToken extends ActiveRecord
         $accessToken->token = $user->auth_key;
         $accessToken->used_at = strtotime("now");
         $accessToken->expire_at = $accessToken->tokenExpiration + $accessToken->used_at; //20525600
-        $accessToken->save();
+        $accessToken->save(false);
     }
 
     /**

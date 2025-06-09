@@ -345,11 +345,12 @@ class UpdateController extends Controller
       }
       $atendente = "{$profile['name']} ({$profile['email']})";
 
-
       if (empty($params['id']) || !is_numeric($params['id'])) {
         throw new \Exception('ID do atendimento inválido.');
       }
+
       $model = Atendimento::findOne($params['id']);
+      
       if (!$model) {
         throw new \Exception('Atendimento não encontrado.');
       }
@@ -365,6 +366,8 @@ class UpdateController extends Controller
         "descricao" => "Atendimento alterado pelo atendente {$atendente}"
       ]);
       $model->etapas = json_encode($arrEtapas);
+      $model->medico_atendimento_data = "$params[data_local_atendimento] $params[hora_atendimento]";
+      $model->medico_atendimento_local = "$params[onde_deseja_ser_atendido]";
 
       if (!$model->save()) {
         Yii::error("Erro ao atualizar atendimento: " . json_encode($model->getErrors(), JSON_UNESCAPED_UNICODE), 'atendimento');
@@ -382,7 +385,7 @@ class UpdateController extends Controller
       Yii::error("Erro ao atualizar atendimento: {$th->getMessage()}", 'atendimento');
       return [
         'status' => 'error',
-        'message' => 'Erro ao atualizar atendimento, tente novamente.',
+        'message' => "Erro ao atualizar atendimento, tente novamente. {$th}",
         'data' => [],
       ];
     }
@@ -428,11 +431,40 @@ class UpdateController extends Controller
       $model->etapas = json_encode($arrEtapas);
 
       $model->save();
+      $errorVaga = [];
+      // Se o status for PAGAMENTO EFETUADO, registrar o uso da vaga
+      if (isset($params['status']) && strtoupper($params['status']) === 'PAGAMENTO EFETUADO') {
+        // Buscar local_id pelo nome do local do atendimento
+        $localNome = $model->medico_atendimento_local;
+        $localModel = \app\models\Local::find()->where(['nome' => $localNome])->one();
+        return $localModel;
+        // if ($localModel) {
+          $vaga = new \app\models\Vaga();
+          $vaga->medico_id = $model->medico;
+          $vaga->horario = $model->hora_atendimento;
+          $vaga->local_id = $localModel->id;
+          $vaga->data = date('Y-m-d', strtotime($model->medico_atendimento_data));
+          $vaga->tipo = $model->o_que_deseja;
+          $vaga->local = $model->onde_deseja_ser_atendido;
+          $vaga->quantidade = 1;
+          $vaga->atendimento = $model->o_que_deseja;
+          $vaga->created_at = date('Y-m-d H:i:s');
+          $vaga->updated_at = date('Y-m-d H:i:s');
+          if (!$vaga->save()) {
+            $errorVaga[] = $vaga->getErrors();
+            \Yii::error("Erro ao registrar vaga usada: " . json_encode($vaga->getErrors(), JSON_UNESCAPED_UNICODE), 'vaga');
+          }
+        // } else {
+        //   $errorVaga[] = "Local não encontrado para registrar vaga usada: $localNome";
+        //   \Yii::error("Local não encontrado para registrar vaga usada: $localNome", 'vaga');
+        // }
+      }
 
       $transactionDb->commit();
 
       $response['status'] = 'success';
       $response['message'] = 'Agendamento atualizado com sucesso!';
+      $response['errorVaga'] = $errorVaga;
       $response['data'] = $model;
 
     } catch (\Throwable $th) {
