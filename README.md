@@ -2,6 +2,19 @@
 
 Esta documentação descreve os endpoints disponíveis na API do Viva Saúde para consumo externo.
 
+## Índice
+
+- [Autenticação](#autenticação)
+- [Endpoints Disponíveis](#endpoints-disponíveis)
+  - [1. Buscar Médicos por Procedimento](#1-buscar-médicos-por-procedimento)
+  - [2. Listar Procedimentos](#2-listar-procedimentos)
+  - [3. Buscar Locais de Atendimento por Médico](#3-buscar-locais-de-atendimento-por-médico)
+  - [4. Buscar Vagas Disponíveis](#4-buscar-vagas-disponíveis)
+  - [5. Renovar Token de Acesso](#5-renovar-token-de-acesso)
+  - [6. Criar Atendimento](#6-criar-atendimento)
+- [Tratamento de Erros](#tratamento-de-erros)
+- [Observações Importantes](#observações-importantes)
+
 ## Autenticação
 
 Todos os endpoints requerem autenticação via token. O token deve ser enviado no header da requisição.
@@ -374,5 +387,16 @@ Possíveis códigos de status:
 3. Os dados são ordenados alfabeticamente por nome quando aplicável
 4. A API suporta CORS para requisições cross-origin
 5. Os endpoints são case-sensitive para os parâmetros de busca
+
+---
+
+## Links Rápidos por Endpoint
+
+- [Buscar Médicos por Procedimento](#1-buscar-médicos-por-procedimento) - `GET /v1/api/medicos-procedimento`
+- [Listar Procedimentos](#2-listar-procedimentos) - `GET /v1/api/procedimentos`
+- [Buscar Locais por Médico](#3-buscar-locais-de-atendimento-por-médico) - `GET /v1/api/medicos-local`
+- [Buscar Vagas](#4-buscar-vagas-disponíveis) - `GET /v1/api/vagas`
+- [Renovar Token](#5-renovar-token-de-acesso) - `POST /v1/api/refresh-token`
+- [Criar Atendimento](#6-criar-atendimento) - `POST /v1/create/atendimento`
 
 
